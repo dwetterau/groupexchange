@@ -39,7 +39,8 @@ app.post('/makeAccount', function(req, res) {
                 email: email,
                 firstname: first,
                 lastname: last,
-                password: pass //TODO add encryption... BIG TODO TODO TODO WARNING
+                password: pass, //TODO add encryption... BIG TODO TODO TODO WARNING
+                reputation: 0
             };
             userdb.insert(newUser, email, function(err, body) {
                 if (!err) {
@@ -89,8 +90,8 @@ app.post('/login', function(req, res) {
 
 app.post('/addTransaction', function(req, res) {
     //The request will store the emails of both of the parties in the transaction
-    var email1 = req.body.email1.toLowerCase;
-    var email2 = req.body.email2.toLowerCase;
+    var email1 = req.body.email1.toLowerCase();
+    var email2 = req.body.email2.toLowerCase();
     var amount = req.body.amount;
     var transactionObject = {
         email1: email1,
@@ -105,97 +106,78 @@ app.post('/addTransaction', function(req, res) {
     } 
 
     //retrieve both users from the userdb
-    var wait = true;
-    var sent, user1, user2;
-    console.log(3);
+    var user1, user2;
+    // The structure is reversed so that the callbacks work in order to serialize
+    // the data retrievals.
+    var makeTransaction = function(num_transactions) {
+
+        transaction_name =  email1.substring(0, email1.indexOf('@')) + '-' +
+                            email2.substring(0, email2.indexOf('@')) + '-' + 
+                            num_transactions;
+    
+        console.log("Made new transasction = '"+transaction_name+"'");
+        transactionObject.id = transaction_name;
+        if (!user1.transactions) {
+            user1.transactions = [];    
+        }
+        if (!user2.transactions) { 
+            user2.transactions = [];
+        }
+        user1.transactions.unshift(transaction_name);
+        user2.transactions.unshift(transaction_name);
+
+        //need to add the new transaction, then update the two user entries
+        //TODO figure out how to roll back partial transactions 
+        transactiondb.insert(transactionObject, transaction_name, function(err, body) {
+            if (err) {
+                res.send("Failed to add transaction.", 503);
+            }
+        });
+        userdb.insert(user1, email1, function(err, body) {
+            if (err) {
+                //shit... should we try to remove the transaction or just leave it?
+                res.send("Failed to add transaction.", 503);
+            }
+        });
+        userdb.insert(user2, email2, function(err, body) {
+            if (err) {
+                //shit... should we try to remove the transaction or just leave it?
+                res.send("Failed to add transaction.", 503);
+            }  
+        });
+        res.send("Successfully made new transaction.", 200);
+    };
+
+    var getSecond = function() {
+        userdb.get(email2, function (err, body) {
+            if (!err) {
+                user2 = body;
+                numTransactions(makeTransaction);
+            } else {
+                res.send("Retrieval failed.", 503);
+            }
+        });
+    };
+    
     userdb.get(email1, function (err, body) {
-        console.log(4);
         if (!err) {
             user1 = body;
+            getSecond();
         } else {
             res.send("Retrieval failed.", 503);
-            sent = true;
         }
-        wait = false;
     });
-    console.log(5);
-    while (wait); //wait for the first user to be retrieved;
-    console.log(6);
-    if (sent) return;
-    wait = true;
-    userdb.get(email2, function (err, body) {
-        if (!err) {
-            user2 = body;
-        } else {
-            res.send("Retrieval failed.", 503);
-            sent = true;
-        }
-        wait = false;
-    });
-    while (wait); //wait for the second one to complete.
-    if (sent) return;
-    transaction_name =  email1.substring(0, email1.indexOf('@')) + '-' +
-                        email2.substring(0, email2.indexOf('@')) + '-' + 
-                        numTransactions();
-    console.log("Attempting to write transaction with name = '"+transaction_name+"'");
-    transactionObject.id = transaction_name;
-    if (!user1.transactions) {
-        user1.transactions = [];    
-    }
-    if (!user2.transactions) { 
-        user2.transactions = [];
-    }
-    user1.transactions.unshift(transaction_name);
-    user2.transactions.unshift(transaction_name);
-
-    //need to add the new transaction, then update the two user entries
-    //TODO figure out how to roll back partial transactions 
-    wait = true;
-    transactiondb.insert(transactionObject, transaction_name, function(err, body) {
-        if (err) {
-            res.send("Failed to add transaction.", 503);
-            sent = true;
-        }
-        wait = false;
-    });
-    while (wait);
-    if (sent) return;
-    wait = true;
-    userdb.insert(user1, email1, function(err, body) {
-        if (err) {
-            //shit... should we try to remove the transaction or just leave it?
-            res.send("Failed to add transaction.", 503);
-            sent = true;
-        }
-        wait = false;
-    });
-    while (wait);
-    if (sent) return;
-    userdb.insert(user2, email2, function(err, body) {
-        if (err) {
-            //shit... should we try to remove the transaction or just leave it?
-            res.send("Failed to add transaction.", 503);
-            sent = true;
-        }  
-        wait = false;
-    });
-    while (wait);
-    if (sent) return;
-    res.send("Successfully made new transaction.", 200);
 });
 
 
-function numTransactions() {
-    var num = -1;
-    var waiting = true;
+function numTransactions(callback) {
     nano.db.get('transactions', function(err, body) {
         if (!err) {
-            num = body.doc_count;;
+            callback(body.doc_count);
+        } else {
+            callback(-1);
         }
-        waiting = false;
     });
-    while (waiting);
-    return num;
 }
 
 
