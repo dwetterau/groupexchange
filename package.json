@@ -1,0 +1,12 @@
+{
+    "name": "exchangegroup",
+    "description": "Prototype for group based transaction website",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "express": "3.x",
+        "nano": "3.x",
+        "url",
+        "qs"
+    }
+}

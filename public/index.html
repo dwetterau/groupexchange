@@ -1,0 +1,84 @@
+<html>
+<title>Group Exchange</title>
+<head>
+<h1>Group Exchange</h1>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script> 
+<script type="text/javascript" src="/jquery.cookie.js"></script>
+<script type="text/javascript" src="/basic.js"></script>
+
+</head>
+<body>
+<div>
+Create an account:
+<div>
+<form id="makeAccountForm" action="makeAccount" method="post">
+    <div>
+        <label for="email">Email: </label>
+        <input type="email" name="email" required="required"></input>
+    </div>
+    <div>
+        <label for="firstname">First Name: </label>
+        <input type="text" name="firstname" required="required"></input>
+    </div>
+    <div>
+        <label for="lastname">Last Name: </label>
+        <input type="text" name="lastname" required="required"></input>
+    </div>
+    <div>
+        <label for="password">Password: </label>
+        <input type="password" name="password" required="required"></input>
+        Warning, passwords being stored in plain text for now so just use something you will remember.
+    </div>
+    <input type="submit" value="Submit"></input>
+</form>
+</div>
+</div>
+
+<div>
+Login:
+<div>
+<form id="login" action="login" method="post">
+    <div>
+        <label for="email">Email: </label>
+        <input type="email" name="email" required="required"></input>
+    </div>
+    <div>
+        <label for="password">Password: </label>
+        <input type="password" name="password" required="required"></input>
+    </div>
+    <input type="submit" value="Login"></input>
+</form>
+</div>
+</div>
+
+<div>
+Make Transaction (Just for testing):
+<div>
+<form id="makeTransactionForm" action="addTransaction" method="post">
+    <div>
+        <label for="email1">User 1 Email: </label>
+        <input type="email" name="email1" required="required"></input>
+    </div>
+    <div>
+        <label for="email2">User 2 Email: </label>
+        <input type="email" name="email2" required="required"></input>
+    </div>
+    <div>
+        <label for="amount">Amount: </label>
+        <input type="number" name="amount" required="required"></input>
+    </div>
+    <div>
+        <label for="details">Details: </label>
+        <input type="text" name="details"></input>
+    </div>
+    <input type="submit" value="Login"></input>
+</form>
+</div>
+</div>
+
+<div>
+(c) Company name here
+</div>
+</body>
+</html>
