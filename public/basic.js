@@ -9,9 +9,11 @@ function checklogin() {
     if (cookie != null) {
         //parse the JSON cookie and make things pretty
         groupexchange.user = JSON.parse(cookie);
+        groupexchange.loggedin = true;
         console.log(groupexchange.user);
     } else {
         groupexchange.user = null;
+        groupexchange.loggedin = false;
     }
 }
 

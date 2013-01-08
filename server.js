@@ -18,7 +18,7 @@ app.get('/all', function(req, res) {
     });
 });
 
-app.post('/makeAccount', function(req, res) {
+app.post('/makeaccount', function(req, res) {
     var email = req.body.email.toLowerCase();
     var first = req.body.firstname;
     var last = req.body.lastname;
@@ -44,6 +44,7 @@ app.post('/makeAccount', function(req, res) {
             };
             userdb.insert(newUser, email, function(err, body) {
                 if (!err) {
+                    console.log('Made new user='+email);
                     res.send('Account created!', 200);
                 } else {
                     res.send('Unable to make account at this time.', 200);
@@ -74,7 +75,7 @@ app.post('/login', function(req, res) {
                     firstname: body.firstname,
                     lastname: body.lastname,
                 };
-                console.log("User "+email+" logged in.");
+                console.log("logged in user="+email);
                 res.cookie('groupexchangename', JSON.stringify(cookieData), {maxAge: 604800000});
                 // 604800000 ms = 7 days
                 res.send('Now logged in!', 200);
@@ -88,15 +89,17 @@ app.post('/login', function(req, res) {
     });
 });
 
-app.post('/addTransaction', function(req, res) {
+app.post('/addtransaction', function(req, res) {
     //The request will store the emails of both of the parties in the transaction
     var email1 = req.body.email1.toLowerCase();
     var email2 = req.body.email2.toLowerCase();
     var amount = req.body.amount;
+    var direction = req.body.direction === 'to_other'; //normal direction is from email1 to email2
     var transactionObject = {
         email1: email1,
         email2: email2,
         amount: amount,
+        direction: direction,
         //still need to set the transaction id
         status: 1 // user1 who made the transaction has approved it
     };
@@ -115,7 +118,7 @@ app.post('/addTransaction', function(req, res) {
                             email2.substring(0, email2.indexOf('@')) + '-' + 
                             num_transactions;
     
-        console.log("Made new transasction = '"+transaction_name+"'");
+        console.log("Made new transasction="+transaction_name);
         transactionObject.id = transaction_name;
         if (!user1.transactions) {
             user1.transactions = [];    
@@ -180,6 +183,69 @@ function numTransactions(callback) {
     });
 }
 
+app.post('/userinfo', function(req, res) {
+    var email_sender = req.body.emailsender.toLowerCase();
+    var email_target = req.body.emailtarget.toLowerCase();
+
+    if (email_sender.length == 0 || email_target.length == 0) {
+        //TODO better login submission checking
+        res.send('Bad userinfo submission', 400);
+        return;
+    }
+    
+    userdb.get(email_target, function (err, body) {
+        if (!err) {
+            user_object = {
+                email: body.email,
+                firstname: body.firstname,
+                reputation: body.reputation
+                };
+            if (email_sender === email_target) {
+                //realease all private info TODO make this not spoofable
+                user_object.lastname = body.lastname;
+                user_object.transactions = body.transactions;
+            }
+            console.log("Retrieved user data for email="+body.email);
+            res.send(user_object, 200);
+        } else {
+            res.send('Unable to find user', 200);
+        }
+    });
+});
+
+app.post('/transactioninfo', function(req, res) {
+    var email = req.body.email.toLowerCase();
+    var transaction = req.body.transaction;
+
+    if (email.length == 0 || transaction.length == 0) {
+         //TODO better login submission checking
+        res.send('Bad transactioninfo submission', 400);
+        return;
+    }
+    transactiondb.get(transaction, function (err, body) {
+        if (!err) {
+            if (!(email === body.email1 || email === body.email2)) {
+                //User shouldn't see it even though it was found
+                res.send('Unable to find transaction', 200);                
+                return;
+            }
+            console.log("Retrieved transaction data for transaction="+transaction);
+            //Copy body into another object so we don't get private CouchDB stuff
+            var transactionObject = {
+                email1: body.email1,
+                email2: body.email2,
+                amount: body.amount,
+                direction: body.direction,
+                status: body.status, // user1 who made the transaction has approved it
+                id : body.id,
+                details: body.details
+            };
+            res.send(transactionObject, 200);
+        } else {
+            res.send('Unable to find transaction', 200);
+        }   
+    });
+});
 
 app.listen(3000);
 console.log('Server started');
