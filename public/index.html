@@ -19,6 +19,10 @@ Create an account:
 <div>
 <form id="makeAccountForm" action="makeaccount" method="post">
     <div>
+        <label for="username">Username: </label>
+        <input type="text" name="username" required="required"></input>
+    </div>
+    <div>
         <label for="email">Email: </label>
         <input type="email" name="email" required="required"></input>
     </div>
@@ -45,8 +49,8 @@ Login:
 <div>
 <form id="login" action="login" method="post">
     <div>
-        <label for="email">Email: </label>
-        <input type="email" name="email" required="required"></input>
+        <label for="username">Username: </label>
+        <input type="text" name="username" required="required"></input>
     </div>
     <div>
         <label for="password">Password: </label>
@@ -62,16 +66,16 @@ Make Transaction (Just for testing):
 <div>
 <form id="makeTransactionForm" action="addtransaction" method="post">
     <div>
-        <label for="email1">User 1 Email: </label>
-        <input type="email" name="email1" required="required"></input>
+        <label for="username1">Username 1: </label>
+        <input type="text" name="username1" required="required"></input>
     </div>
     <div>
-        <label for="email2">User 2 Email: </label>
-        <input type="email" name="email2" required="required"></input>
+        <label for="username2">Username 2: </label>
+        <input type="text" name="username2" required="required"></input>
     </div>
     <div>
-        <label for="amount">Amount: </label>
-        <input type="number" name="amount" required="required"></input>
+        <label for="amount">Amount: $</label>
+        <input type="number" name="amount" step="any" min="0" required="required"></input>
     </div>
     <div>
         <input type="radio" name="direction" value="to_other" checked>To Other<br />
@@ -91,12 +95,12 @@ User info lookup (Just for testing):
 <div>
 <form id="lookupUserForm" action="userinfo" method="post">
     <div>
-        <label for="emailsender">Sender Email: </label>
-        <input type="email" name="emailsender" required="required"></input>
+        <label for="usersender">Sender Username: </label>
+        <input type="text" name="usersender" required="required"></input>
     </div>
     <div>
-        <label for="emailtarget">Target Email: </label>
-        <input type="email" name="emailtarget" required="required"></input>
+        <label for="usertarget">Target Username: </label>
+        <input type="text" name="usertarget" required="required"></input>
     </div>
     <input type="submit" value="Lookup"></input>
 </form>
@@ -108,8 +112,8 @@ Transaction info lookup (Just for testing):
 <div>
 <form id="lookupTransactionForm" action="transactioninfo" method="post">
     <div>
-        <label for="email">Email: </label>
-        <input type="email" name="email" required="required"></input>
+        <label for="username">Username: </label>
+        <input type="text" name="username" required="required"></input>
     </div>
     <div>
         <label for="transaction">Transaction: </label>

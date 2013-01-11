@@ -19,32 +19,34 @@ app.get('/all', function(req, res) {
 });
 
 app.post('/makeaccount', function(req, res) {
+    var username = req.body.username.toLowerCase();
     var email = req.body.email.toLowerCase();
     var first = req.body.firstname;
     var last = req.body.lastname;
     var pass = req.body.password;
 
-    if (email.length == 0 || first.length == 0 || last.length == 0 || pass.length == 0) {
+    if (username.length < 4 || email.length == 0 || first.length == 0 || last.length == 0 || pass.length == 0) {
         //TODO better account submission checking
         res.send('Bad form submission', 400);
         return;
     }
     
-    var retrieved = userdb.head(email, function(err, body) {
+    var retrieved = userdb.head(username, function(err, body) {
         if (!err) {
-            res.send('Email is already in use.', 200);
+            res.send('Username is already in use.', 200);
         } else {
             //create the account
             var newUser = {
+                username: username,
                 email: email,
                 firstname: first,
                 lastname: last,
                 password: pass, //TODO add encryption... BIG TODO TODO TODO WARNING
                 reputation: 0
             };
-            userdb.insert(newUser, email, function(err, body) {
+            userdb.insert(newUser, username, function(err, body) {
                 if (!err) {
-                    console.log('Made new user='+email);
+                    console.log('Made new user='+username);
                     res.send('Account created!', 200);
                 } else {
                     res.send('Unable to make account at this time.', 200);
@@ -55,27 +57,27 @@ app.post('/makeaccount', function(req, res) {
 });
 
 app.post('/login', function(req, res) {
-    var email = req.body.email.toLowerCase();
+    var username = req.body.username.toLowerCase();
     var pass = req.body.password;
 
-    if (email.length == 0 || pass.length == 0) {
+    if (username.length == 0 || pass.length == 0) {
         //TODO better login submission checking
         res.send('Bad login submission', 400);
         return;
     }
     
-    userdb.get(email, function (err, body) {
+    userdb.get(username, function (err, body) {
         if (!err) {
             //check the password
             if (body.password == pass) {
                 //set their cookie with their username.. TODO make this un-spoofable
                 //Good for 10 hours
                 var cookieData = {
-                    email: email,
+                    username: username,
                     firstname: body.firstname,
                     lastname: body.lastname,
                 };
-                console.log("logged in user="+email);
+                console.log("logged in user="+username);
                 res.cookie('groupexchangename', JSON.stringify(cookieData), {maxAge: 604800000});
                 // 604800000 ms = 7 days
                 res.send('Now logged in!', 200);
@@ -84,24 +86,27 @@ app.post('/login', function(req, res) {
             }
         } else {
             //Couldn't find it in database OR database is unavailable
-            res.send('Invalid email', 200);
+            res.send('Invalid username', 200);
         }
     });
 });
 
 app.post('/addtransaction', function(req, res) {
-    //The request will store the emails of both of the parties in the transaction
-    var email1 = req.body.email1.toLowerCase();
-    var email2 = req.body.email2.toLowerCase();
+    //The request will store the usernames of both of the parties in the transaction
+    var username1 = req.body.username1.toLowerCase();
+    var username2 = req.body.username2.toLowerCase();
     var amount = req.body.amount;
-    var direction = req.body.direction === 'to_other'; //normal direction is from email1 to email2
+    var direction = req.body.direction === 'to_other'; //normal direction is from username1 to username2
+    var createTime = new Date();
     var transactionObject = {
-        email1: email1,
-        email2: email2,
+        username1: username1,
+        username2: username2,
         amount: amount,
         direction: direction,
         //still need to set the transaction id
-        status: 1 // user1 who made the transaction has approved it
+        status: 1, // user1 who made the transaction has approved it
+        createTime : createTime,
+        lastModifiedTime : createTime
     };
 
     if (req.body.details) {
@@ -114,9 +119,7 @@ app.post('/addtransaction', function(req, res) {
     // the data retrievals.
     var makeTransaction = function(num_transactions) {
 
-        transaction_name =  email1.substring(0, email1.indexOf('@')) + '-' +
-                            email2.substring(0, email2.indexOf('@')) + '-' + 
-                            num_transactions;
+        transaction_name =  username1 + '-' + username2 + '-' + num_transactions;
     
         console.log("Made new transasction="+transaction_name);
         transactionObject.id = transaction_name;
@@ -136,13 +139,13 @@ app.post('/addtransaction', function(req, res) {
                 res.send("Failed to add transaction.", 503);
             }
         });
-        userdb.insert(user1, email1, function(err, body) {
+        userdb.insert(user1, username1, function(err, body) {
             if (err) {
                 //shit... should we try to remove the transaction or just leave it?
                 res.send("Failed to add transaction.", 503);
             }
         });
-        userdb.insert(user2, email2, function(err, body) {
+        userdb.insert(user2, username2, function(err, body) {
             if (err) {
                 //shit... should we try to remove the transaction or just leave it?
                 res.send("Failed to add transaction.", 503);
@@ -152,7 +155,7 @@ app.post('/addtransaction', function(req, res) {
     };
 
     var getSecond = function() {
-        userdb.get(email2, function (err, body) {
+        userdb.get(username2, function (err, body) {
             if (!err) {
                 user2 = body;
                 numTransactions(makeTransaction);
@@ -162,7 +165,7 @@ app.post('/addtransaction', function(req, res) {
         });
     };
     
-    userdb.get(email1, function (err, body) {
+    userdb.get(username1, function (err, body) {
         if (!err) {
             user1 = body;
             getSecond();
@@ -184,28 +187,29 @@ function numTransactions(callback) {
 }
 
 app.post('/userinfo', function(req, res) {
-    var email_sender = req.body.emailsender.toLowerCase();
-    var email_target = req.body.emailtarget.toLowerCase();
+    var user_sender = req.body.usersender.toLowerCase();
+    var user_target = req.body.usertarget.toLowerCase();
 
-    if (email_sender.length == 0 || email_target.length == 0) {
+    if (user_sender.length == 0 || user_target.length == 0) {
         //TODO better login submission checking
         res.send('Bad userinfo submission', 400);
         return;
     }
     
-    userdb.get(email_target, function (err, body) {
+    userdb.get(user_target, function (err, body) {
         if (!err) {
             user_object = {
-                email: body.email,
+                username: body.username,
                 firstname: body.firstname,
                 reputation: body.reputation
                 };
-            if (email_sender === email_target) {
+            if (user_sender === user_target) {
                 //realease all private info TODO make this not spoofable
                 user_object.lastname = body.lastname;
                 user_object.transactions = body.transactions;
+                user_object.email = body.email;
             }
-            console.log("Retrieved user data for email="+body.email);
+            console.log("Retrieved user data for user="+body.username);
             res.send(user_object, 200);
         } else {
             res.send('Unable to find user', 200);
@@ -214,17 +218,17 @@ app.post('/userinfo', function(req, res) {
 });
 
 app.post('/transactioninfo', function(req, res) {
-    var email = req.body.email.toLowerCase();
+    var username = req.body.username.toLowerCase();
     var transaction = req.body.transaction;
 
-    if (email.length == 0 || transaction.length == 0) {
+    if (username.length == 0 || transaction.length == 0) {
          //TODO better login submission checking
         res.send('Bad transactioninfo submission', 400);
         return;
     }
     transactiondb.get(transaction, function (err, body) {
         if (!err) {
-            if (!(email === body.email1 || email === body.email2)) {
+            if (!(username === body.username1 || username === body.username2)) {
                 //User shouldn't see it even though it was found
                 res.send('Unable to find transaction', 200);                
                 return;
@@ -232,15 +236,92 @@ app.post('/transactioninfo', function(req, res) {
             console.log("Retrieved transaction data for transaction="+transaction);
             //Copy body into another object so we don't get private CouchDB stuff
             var transactionObject = {
-                email1: body.email1,
-                email2: body.email2,
+                username1: body.username1,
+                username2: body.username2,
                 amount: body.amount,
                 direction: body.direction,
                 status: body.status, // user1 who made the transaction has approved it
                 id : body.id,
-                details: body.details
+                details: body.details,
+                createTime: body.createTime,
+                lastModifiedTime: body.lastModifiedTime
             };
             res.send(transactionObject, 200);
+        } else {
+            res.send('Unable to find transaction', 200);
+        }   
+    });
+});
+
+app.post('/advancetransaction', function(req, res) {
+    var username = req.body.username.toLowerCase();
+    var transaction = req.body.transaction;
+
+    if (username.length == 0 || transaction.length == 0) {
+         //TODO better login submission checking
+        res.send('Bad transactioninfo submission', 400);
+        return;
+    }
+    
+    transactiondb.get(transaction, function (err, body) {
+        if (!err) {
+            if (!(username === body.username1 || username === body.username2)) {
+                //User shouldn't see it even though it was found
+                res.send('Unable to find transaction', 200);                
+                return;
+            }
+            //verify that the user can actually update the transaction
+            // flow is represented by an fsm but the path should be always
+            // increasing and will skip either 3 or 4 to get to 5
+            // Remember the following rules:
+            // 1 = waiting on user 2
+            // 2 = waiting on either user
+            // 3 = waiting on user 1
+            // 4 = waiting on user 2
+            // 5 = done
+            var numToUpdateTo = -1;
+            switch (body.status) {
+                case 1:
+                    if (username === body.username2) {
+                        numToUpdateTo = 2;
+                    }
+                    break;
+                case 2:
+                    if (username === body.username1) {
+                        numToUpdateTo = 4;
+                    } else if (username === body.username2) {
+                        numToUpdateTo = 3;
+                    }
+                    break;
+                case 3:
+                    if (username === body.username1) {
+                        numToUpdateTo = 5;
+                    }
+                    break;
+                case 4:
+                    if (username === body.username2) {
+                        numToUpdateTo = 5;
+                    }
+                default:
+                    break;
+            }
+            if (numToUpdateTo == 5) {
+                //TODO increment reputation and stuff
+            }
+            if (numToUpdateTo == -1) {
+                //User not able to update transaction
+                res.send('Not able to update', 200);
+            }
+            body.status = numToUpdateTo;
+            body.lastModifiedTime = new Date();
+            transactiondb.insert(body, body.id, function (err, body) {
+                if (!err) {
+                    console.log("Updated transaction="+transaction);
+                    res.send('Updated successfully', 200);
+                } else {
+                    res.send('Unable to update transaction', 200);
+                }
+            });
         } else {
             res.send('Unable to find transaction', 200);
         }   
