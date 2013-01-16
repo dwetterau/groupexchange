@@ -3,6 +3,7 @@ var express = require('express');
 
 var userdb = nano.use('users');
 var transactiondb = nano.use('transactions');
+var groupdb = nano.use('groups');
 
 var app = express();
 
@@ -31,7 +32,7 @@ app.post('/makeaccount', function(req, res) {
         return;
     }
     
-    var retrieved = userdb.head(username, function(err, body) {
+    userdb.head(username, function(err, body) {
         if (!err) {
             res.send('Username is already in use.', 200);
         } else {
@@ -55,6 +56,91 @@ app.post('/makeaccount', function(req, res) {
         }
     });
 });
+
+app.post('/makegroup', function(req, res) {
+    var username = req.body.username.toLowerCase();
+    var display_groupname = req.body.groupname.toLowerCase();
+    var groupname = escape(display_groupname);
+    if (!username || !groupname || username.length < 4 || groupname.length < 4) {
+        res.send('Bad form submission', 200);
+    }
+    var group_name_combined = username + '-' + groupname; 
+    groupdb.head(group_name_combined, function(err, body) {
+        if (!err) {
+            res.send('Groupname is in use.', 200); //Aka this user has already created a group with this name
+        } else {
+            var groupObject = {
+                name: group_name_combined,
+                display_name: display_groupname,
+                owner: username,
+                members: [username]
+            };
+            groupdb.insert(groupObject, group_name_combined, function(err, body) {
+                if (!err) {
+                    console.log('Made new group='+group_name_combined);
+                    addUserToGroup(username, group_name_combined); 
+                    res.send('Made group!', 200);
+                } else {
+                    res.send('Unable to make group at this time.', 200);
+                }
+            });
+        }
+    });
+});
+
+
+
+app.post('/addgroup', function (req, res) {
+    var username = req.body.username.toLowerCase();
+    var groupname = req.body.groupname.toLowerCase();
+    if (!username || !groupname || username.length < 4 || groupname.length < 9) {
+        res.send('Bad form submission', 200);
+    }
+    groupdb.get(groupname, function(err, body) {
+        if (err) {
+            res.send('Unable to find group', 200);
+        } else {
+            var list = body.members;
+            var found = false;
+            for (var i = 0; i < list['length']; i++) {
+                if (list[i] === 'username') {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                body.members.push(username);
+                groupdb.insert(body, groupname, function(err, body) {
+                    if (err) {
+                        res.send('Unable to add to group', 200);
+                    } else {
+                        addUserToGroup(username, groupname);
+                        console.log('Added user to group='+groupname);
+                        res.send('Successfully added user to group', 200);
+                    }
+                });
+            } else {
+                res.send('Already in group', 200);
+            }
+        }
+    });
+});
+
+function addUserToGroup(username, groupname) {
+    userdb.get(username, function(err, body) {
+        if (!err) {
+            if (!body.groups) {
+                body.groups = [];
+            }
+            body.groups.push(groupname);
+            userdb.insert(body, username, function(err, body) {
+                if (!err) {
+                    console.log("Successfully added group to user's account");
+                }
+            });
+        }
+    });
+}
 
 app.post('/login', function(req, res) {
     var username = req.body.username.toLowerCase();

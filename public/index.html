@@ -9,9 +9,17 @@
 <body>
 <div>
 <h1>Group Exchange</h1>
-<div>(This is just a placeholder name)</div>
 
 <a href="/profile.html">View profile</a>
+<a href="/group.html">View group</a>
+<form id="viewGroupForm" action="viewgroup" method="get">
+     <div>
+        <label for="groupname">Group name: </label>
+        <input type="text" name="groupname" required="required"></input>
+    </div>
+    <input type="submit" value="View"></input>
+</form>
+
 </div>
 
 <div>
@@ -39,7 +47,7 @@ Create an account:
         <input type="password" name="password" required="required"></input>
         Warning, passwords being stored in plain text for now so just use something you will remember.
     </div>
-    <input type="submit" value="Submit"></input>
+    <input type="submit" value="Create Account"></input>
 </form>
 </div>
 </div>
@@ -123,5 +131,40 @@ Transaction info lookup (Just for testing):
 </form>
 </div>
 </div>
+
+<div>
+Create group form:
+<div>
+<form id="createGroupForm" action="makegroup" method="post">
+    <div>
+        <label for="username">Username: </label>
+        <input type="text" name="username" required="required"></input>
+    </div>
+    <div>
+        <label for="groupname">Group name: </label>
+        <input type="text" name="groupname" required="required"></input>
+    </div>
+    <input type="submit" value="Create"></input>
+</form>
+</div>
+</div>
+
+<div>
+Add user to group form:
+<div>
+<form id="addToGroupForm" action="addgroup" method="post">
+    <div>
+        <label for="username">Username: </label>
+        <input type="text" name="username" required="required"></input>
+    </div>
+    <div>
+        <label for="groupname">Group name: </label>
+        <input type="text" name="groupname" required="required"></input>
+    </div>
+    <input type="submit" value="Add User"></input>
+</form>
+</div>
+</div>
+
 </body>
 </html>
