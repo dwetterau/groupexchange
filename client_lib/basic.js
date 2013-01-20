@@ -1,3 +1,4 @@
+require(["jquery", "jquery.cookie"], function($) {
 function init() {
     checklogin();
 }
@@ -24,3 +25,4 @@ function logout() {
 }
 
 init();
+});

@@ -11,6 +11,7 @@ app.configure(function() {
     app.use(express.bodyParser());
     app.use(express.cookieParser());
     app.use(express.static(__dirname + '/public'));
+	  app.use('/lib', express.static(__dirname + '/client_lib'));
 });
 
 app.get('/all', function(req, res) {
