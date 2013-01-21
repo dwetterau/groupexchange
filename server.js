@@ -104,7 +104,7 @@ app.post('/addgroup', function (req, res) {
             var list = body.members;
             var found = false;
             for (var i = 0; i < list['length']; i++) {
-                if (list[i] === 'username') {
+                if (list[i] === username) {
                     found = true;
                     break;
                 }
@@ -295,6 +295,7 @@ app.post('/userinfo', function(req, res) {
                 user_object.lastname = body.lastname;
                 user_object.transactions = body.transactions;
                 user_object.email = body.email;
+                user_object.groups = body.groups;
             }
             console.log("Retrieved user data for user="+body.username);
             res.send(user_object, 200);
@@ -337,6 +338,36 @@ app.post('/transactioninfo', function(req, res) {
         } else {
             res.send('Unable to find transaction', 200);
         }   
+    });
+});
+
+app.post('/groupinfo', function(req, res) {
+    var username = req.body.username.toLowerCase();
+    var groupname = req.body.groupname.toLowerCase();
+    //TODO param checking
+    groupdb.get(groupname, function (err, body) {
+        if (!err) {
+            var list = body.members;
+            var found = false;
+            for (var i = 0; i < list['length']; i++) {
+                if (list[i] === username) {
+                    found = true;
+                    break;
+                }
+            }
+            groupObject = {
+                display_name: body.display_name
+            };   
+            if (found) {
+                //Add all the private info because you're in the private group
+                groupObject.name = body.name;
+                groupObject.owner = body.owner;
+                groupObject.members = body.members;
+            }
+            res.send(groupObject, 200);       
+        } else {
+            res.send("Didn't find group", 200);
+        }
     });
 });
 
