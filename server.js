@@ -1,5 +1,6 @@
 var nano = require('nano')('http://localhost:5984');
 var express = require('express');
+var auth = require('./auth');
 
 var userdb = nano.use('users');
 var transactiondb = nano.use('transactions');
@@ -10,6 +11,9 @@ var app = express();
 app.configure(function() {
     app.use(express.bodyParser());
     app.use(express.cookieParser());
+    app.use(express.cookieSession({
+        secret: 'test'
+    }));
     app.use(express.static(__dirname + '/public'));
 	  app.use('/lib', express.static(__dirname + '/client_lib'));
 });
@@ -20,6 +24,10 @@ app.get('/all', function(req, res) {
     });
 });
 
+app.get('/secure', auth.checkAuth, function(req, res) {
+    res.send('You are def logged in');
+});
+
 app.post('/makeaccount', function(req, res) {
     var username = req.body.username.toLowerCase();
     var email = req.body.email.toLowerCase();
@@ -27,7 +35,11 @@ app.post('/makeaccount', function(req, res) {
     var last = req.body.lastname;
     var pass = req.body.password;
 
-    if (username.length < 4 || email.length == 0 || first.length == 0 || last.length == 0 || pass.length == 0) {
+    if (username.length < 4 ||
+        email.length === 0 ||
+        first.length === 0 ||
+        last.length === 0 ||
+        pass.length === 0) {
         //TODO better account submission checking
         res.send('Bad form submission', 400);
         return;
@@ -37,22 +49,26 @@ app.post('/makeaccount', function(req, res) {
         if (!err) {
             res.send('Username is already in use.', 200);
         } else {
-            //create the account
-            var newUser = {
-                username: username,
-                email: email,
-                firstname: first,
-                lastname: last,
-                password: pass, //TODO add encryption... BIG TODO TODO TODO WARNING
-                reputation: 0
-            };
-            userdb.insert(newUser, username, function(err, body) {
-                if (!err) {
-                    console.log('Made new user='+username);
-                    res.send('Account created!', 200);
-                } else {
-                    res.send('Unable to make account at this time.', 200);
-                }
+            var salt = auth.generateSalt(128);
+            auth.hash_password(pass, salt, function(hashed_pass) {
+                //create the account
+                var newUser = {
+                    username: username,
+                    email: email,
+                    firstname: first,
+                    lastname: last,
+                    password: hashed_pass,
+                    salt: salt,
+                    reputation: 0
+                };
+                userdb.insert(newUser, username, function(err, body) {
+                    if (!err) {
+                        console.log('Made new user='+username);
+                        res.send('Account created!', 200);
+                    } else {
+                        res.send('Unable to make account at this time.', 200);
+                    }
+                });
             });
         }
     });
@@ -156,21 +172,26 @@ app.post('/login', function(req, res) {
     userdb.get(username, function (err, body) {
         if (!err) {
             //check the password
-            if (body.password == pass) {
-                //set their cookie with their username.. TODO make this un-spoofable
-                //Good for 10 hours
-                var cookieData = {
-                    username: username,
-                    firstname: body.firstname,
-                    lastname: body.lastname,
-                };
-                console.log("logged in user="+username);
-                res.cookie('groupexchangename', JSON.stringify(cookieData), {maxAge: 604800000});
-                // 604800000 ms = 7 days
-                res.send('Now logged in!', 200);
-            } else {
-                res.send('Invalid password', 200);
-            }
+            auth.hash_password(pass, body.salt, function(hashed_pass) {
+                console.log('body.password: ' + body.password);
+                console.log('hashed_pass: ' + hashed_pass);
+                console.log('salt: ' + body.salt);
+                if (body.password == hashed_pass) {
+                    //set their cookie with their username.. TODO make this un-spoofable
+                    //Good for 10 hours
+                    var cookieData = {
+                        username: username,
+                        firstname: body.firstname,
+                        lastname: body.lastname,
+                    };
+                    console.log("logged in user="+username);
+                    req.session.user_id = 'testuserid';
+                    // 604800000 ms = 7 days
+                    res.send('Now logged in!', 200);
+                } else {
+                    res.send('Invalid password', 200);
+                }
+            });
         } else {
             //Couldn't find it in database OR database is unavailable
             res.send('Invalid username', 200);

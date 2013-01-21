@@ -10,7 +10,16 @@ var commands = {
             nano.db.create('groups');
             return;
         }
-    }};
+    },
+    dropdb: {
+        help: 'deletes all databases',
+        code: function() {
+            nano.db.destroy('users');
+            nano.db.destroy('transactions');
+            nano.db.destroy('groups');
+        }
+    }
+};
 
 function print_help() {
     console.log('Possible commands are:');
