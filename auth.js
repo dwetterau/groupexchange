@@ -1,4 +1,5 @@
 var crypto = require('crypto');
+var db = require('./db');
 
 function checkAuth(req, res, next) {
     if (!req.session.user_id) {
@@ -26,4 +27,3 @@ function hash_password(password, salt, callback) {
 exports.checkAuth = checkAuth;
 exports.generateSalt = generateSalt;
 exports.hash_password = hash_password;
-    

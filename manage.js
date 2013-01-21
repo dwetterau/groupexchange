@@ -1,22 +1,23 @@
 // Basic site management functions
-var nano = require('nano')('http://localhost:5984');
+var db = require('./db');
+var nano = db.nano;
 
 var commands = {
     createdb: { 
         help: 'creates required databases',
         code: function() {
-            nano.db.create('users');
-            nano.db.create('transactions');
-            nano.db.create('groups');
+            db.databases.forEach(function(database) {
+                nano.db.create(database);
+            });
             return;
         }
     },
     dropdb: {
         help: 'deletes all databases',
         code: function() {
-            nano.db.destroy('users');
-            nano.db.destroy('transactions');
-            nano.db.destroy('groups');
+            db.databases.forEach(function(database) {
+                nano.db.destroy(database);
+            });
         }
     }
 };

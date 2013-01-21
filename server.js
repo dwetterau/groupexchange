@@ -1,10 +1,12 @@
-var nano = require('nano')('http://localhost:5984');
 var express = require('express');
 var auth = require('./auth');
+var db = require('./db');
 
-var userdb = nano.use('users');
-var transactiondb = nano.use('transactions');
-var groupdb = nano.use('groups');
+// Todo - abstract database opening out 
+var userdb = db.users;
+var transactiondb = db.transactions;
+var groupdb = db.groups;
+var nano = db.nano;
 
 var app = express();
 
