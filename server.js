@@ -2,7 +2,6 @@ var express = require('express');
 var auth = require('./auth');
 var db = require('./db');
 
-// Todo - abstract database opening out 
 var userdb = db.users;
 var transactiondb = db.transactions;
 var groupdb = db.groups;
@@ -20,14 +19,8 @@ app.configure(function() {
 	  app.use('/lib', express.static(__dirname + '/client_lib'));
 });
 
-app.get('/all', function(req, res) {
-    userdb.view('getAll','getAll',function (error, body, headers) {
-        res.send(body, 200);
-    });
-});
-
 app.get('/secure', auth.checkAuth, function(req, res) {
-    res.send('You are def logged in');
+    res.send('You are def logged in ' + req.user.firstname);
 });
 
 app.post('/makeaccount', function(req, res) {
@@ -76,11 +69,11 @@ app.post('/makeaccount', function(req, res) {
     });
 });
 
-app.post('/makegroup', function(req, res) {
-    var username = req.body.username.toLowerCase();
+app.post('/makegroup', auth.checkAuth, function(req, res) {
+    var username = req.user.username;
     var display_groupname = req.body.groupname.toLowerCase();
     var groupname = escape(display_groupname);
-    if (!username || !groupname || username.length < 4 || groupname.length < 4) {
+    if (!groupname || groupname.length < 4) {
         res.send('Bad form submission', 200);
     }
     var group_name_combined = username + '-' + groupname; 
@@ -109,10 +102,10 @@ app.post('/makegroup', function(req, res) {
 
 
 
-app.post('/addgroup', function (req, res) {
-    var username = req.body.username.toLowerCase();
+app.post('/addgroup', auth.checkAuth, function (req, res) {
+    var username = req.user.username;
     var groupname = req.body.groupname.toLowerCase();
-    if (!username || !groupname || username.length < 4 || groupname.length < 9) {
+    if (!groupname || groupname.length < 9) {
         res.send('Bad form submission', 200);
     }
     groupdb.get(groupname, function(err, body) {
@@ -175,9 +168,6 @@ app.post('/login', function(req, res) {
         if (!err) {
             //check the password
             auth.hash_password(pass, body.salt, function(hashed_pass) {
-                console.log('body.password: ' + body.password);
-                console.log('hashed_pass: ' + hashed_pass);
-                console.log('salt: ' + body.salt);
                 if (body.password == hashed_pass) {
                     //set their cookie with their username.. TODO make this un-spoofable
                     //Good for 10 hours
@@ -186,8 +176,7 @@ app.post('/login', function(req, res) {
                         firstname: body.firstname,
                         lastname: body.lastname,
                     };
-                    console.log("logged in user="+username);
-                    req.session.user_id = 'testuserid';
+                    req.session.user_id = username;
                     // 604800000 ms = 7 days
                     res.send('Now logged in!', 200);
                 } else {
@@ -201,7 +190,12 @@ app.post('/login', function(req, res) {
     });
 });
 
-app.post('/addtransaction', function(req, res) {
+app.get('/logout', auth.checkAuth, function(req, res) {
+    delete req.session.user_id;
+    res.redirect(301, '/login');
+});
+
+app.post('/addtransaction', auth.checkAuth, function(req, res) {
     //The request will store the usernames of both of the parties in the transaction
     var username1 = req.body.username1.toLowerCase();
     var username2 = req.body.username2.toLowerCase();
@@ -296,7 +290,7 @@ function numTransactions(callback) {
     });
 }
 
-app.post('/userinfo', function(req, res) {
+app.post('/userinfo', auth.checkAuth, function(req, res) {
     var user_sender = req.body.usersender.toLowerCase();
     var user_target = req.body.usertarget.toLowerCase();
 
@@ -328,7 +322,7 @@ app.post('/userinfo', function(req, res) {
     });
 });
 
-app.post('/transactioninfo', function(req, res) {
+app.post('/transactioninfo', auth.checkAuth, function(req, res) {
     var username = req.body.username.toLowerCase();
     var transaction = req.body.transaction;
 
@@ -364,8 +358,8 @@ app.post('/transactioninfo', function(req, res) {
     });
 });
 
-app.post('/groupinfo', function(req, res) {
-    var username = req.body.username.toLowerCase();
+app.post('/groupinfo', auth.checkAuth, function(req, res) {
+    var username = req.user.username;
     var groupname = req.body.groupname.toLowerCase();
     //TODO param checking
     groupdb.get(groupname, function (err, body) {
@@ -394,8 +388,8 @@ app.post('/groupinfo', function(req, res) {
     });
 });
 
-app.post('/advancetransaction', function(req, res) {
-    var username = req.body.username.toLowerCase();
+app.post('/advancetransaction', auth.checkAuth, function(req, res) {
+    var username = req.user.username;
     var transaction = req.body.transaction;
 
     if (username.length == 0 || transaction.length == 0) {

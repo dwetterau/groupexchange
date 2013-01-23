@@ -3,9 +3,13 @@ var db = require('./db');
 
 function checkAuth(req, res, next) {
     if (!req.session.user_id) {
-        res.send('Not logged in');
+        // Todo: lets decouple our urls
+        res.redirect(301, '/login');
     } else {
-        next();
+        db.users.get(req.session.user_id, function(err, doc) {
+            req.user = doc;
+            next();
+        });
     }
 }
 
@@ -17,6 +21,7 @@ function hash_password(password, salt, callback) {
     crypto.pbkdf2(password, salt, 10000, 512, function(err, dk) {
         if (err) {
             console.error('Error hashing a password');
+            throw new Error(err);
         } else {
             callback(new Buffer(dk).toString('base64'));
         }
