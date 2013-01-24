@@ -23,6 +23,30 @@ app.get('/secure', auth.checkAuth, function(req, res) {
     res.send('You are def logged in ' + req.user.firstname);
 });
 
+app.get('/user/:username', auth.checkAuth, function(req, res) {
+    // TODO: Add permissions checking
+    var username = req.params.username;
+    userdb.get(username, function(err, doc) {
+        if (err) {
+            res.send('Bad');
+        } else {
+            res.send(JSON.stringify(doc));
+        }
+    });
+});
+
+app.get('/group/:name', auth.checkAuth, function(req, res) {
+    // TODO: Add permissions checking
+    var name = req.params.name;
+    groupdb.get(name, function(err, doc) {
+        if (err) {
+            res.send('Bad');
+        } else {
+            res.send(JSON.stringify(doc));
+        }
+    });
+});
+
 app.post('/makeaccount', function(req, res) {
     var username = req.body.username.toLowerCase();
     var email = req.body.email.toLowerCase();
@@ -163,29 +187,25 @@ app.post('/login', function(req, res) {
         res.send('Bad login submission', 400);
         return;
     }
-    
+
+    var response = {logged_in: false};
     userdb.get(username, function (err, body) {
         if (!err) {
             //check the password
             auth.hash_password(pass, body.salt, function(hashed_pass) {
                 if (body.password == hashed_pass) {
-                    //set their cookie with their username.. TODO make this un-spoofable
-                    //Good for 10 hours
-                    var cookieData = {
-                        username: username,
-                        firstname: body.firstname,
-                        lastname: body.lastname,
-                    };
                     req.session.user_id = username;
-                    // 604800000 ms = 7 days
-                    res.send('Now logged in!', 200);
+                    response.logged_in = true;
+                    response.username = username;
                 } else {
-                    res.send('Invalid password', 200);
+                    response.error = 'Invalid username or password';
                 }
+                res.send(JSON.stringify(response));
             });
         } else {
             //Couldn't find it in database OR database is unavailable
-            res.send('Invalid username', 200);
+            response.error = 'Invalid username or password';
+            res.send(JSON.stringify(response));
         }
     });
 });
