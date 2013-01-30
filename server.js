@@ -1,4 +1,7 @@
 var express = require('express');
+var check = require('validator').check;
+var sanitize = require('validator').sanitize;
+
 var auth = require('./auth');
 var db = require('./db');
 
@@ -68,7 +71,17 @@ app.post('/makeaccount', function(req, res) {
     var last = req.body.lastname;
     var pass = req.body.password;
 
-    if (username.length < 4 ||
+    try {
+        check(username).len(4,16).isAlphanumeric();;
+        check(email).len(6,64).isEmail();
+        check(first).len(1,64).isAlpha();
+        check(last).len(1,64).isAlpha();
+        //TODO password checking?
+    } catch (e) {
+        res.send(e.message, 400)
+    }
+    
+    /*if (username.length < 4 ||
         email.length === 0 ||
         first.length === 0 ||
         last.length === 0 ||
@@ -76,7 +89,7 @@ app.post('/makeaccount', function(req, res) {
         //TODO better account submission checking
         res.send('Bad form submission', 400);
         return;
-    }
+    }*/
     
     userdb.head(username, function(err, body) {
         if (!err) {
