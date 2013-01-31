@@ -1,5 +1,8 @@
 var express = require('express');
 var connect = require('connect');
+var check = require('validator').check;
+var sanitize = require('validator').sanitize;
+
 var auth = require('./auth');
 var db = require('./db');
 
@@ -29,8 +32,13 @@ app.get('/secure', auth.checkAuth, function(req, res) {
     res.send('You are def logged in ' + req.user.firstname);
 });
 
+//TODO Change these to not just return the doc but copy it to another object?
+// The doc itself has private couchDB stuff that Idk if we want to expose...
 app.get('/user/:username', auth.checkAuth, function(req, res) {
     var username = req.params.username;
+    if (req.user.username !== username) {
+        res.send('Other profile viewing not implemented yet');
+    }
     userdb.get(username, function(err, doc) {
         if (err) {
             res.send('Bad');
@@ -41,13 +49,23 @@ app.get('/user/:username', auth.checkAuth, function(req, res) {
 });
 
 app.get('/group/:name', auth.checkAuth, function(req, res) {
-    // TODO: Add permissions checking
     var name = req.params.name;
     groupdb.get(name, function(err, doc) {
         if (err) {
             res.send('Bad');
         } else {
-            res.send(JSON.stringify(doc));
+            var found = false;
+            for (var i = 0; i < doc.members.length; i++) {
+                if (members[i] === req.user.username) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                res.send(JSON.stringify(doc));
+            } else {
+                res.send('Not able to view')
+            }
         }
     });
 });
@@ -59,7 +77,17 @@ app.post('/makeaccount', function(req, res) {
     var last = req.body.lastname;
     var pass = req.body.password;
 
-    if (username.length < 4 ||
+    try {
+        check(username).len(4,16).isAlphanumeric();;
+        check(email).len(6,64).isEmail();
+        check(first).len(1,64).isAlpha();
+        check(last).len(1,64).isAlpha();
+        //TODO password checking?
+    } catch (e) {
+        res.send(e.message, 400)
+    }
+    
+    /*if (username.length < 4 ||
         email.length === 0 ||
         first.length === 0 ||
         last.length === 0 ||
@@ -67,7 +95,7 @@ app.post('/makeaccount', function(req, res) {
         //TODO better account submission checking
         res.send('Bad form submission', 400);
         return;
-    }
+    }*/
     
     userdb.head(username, function(err, body) {
         if (!err) {
@@ -129,11 +157,11 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
     });
 });
 
-
-
 app.post('/addgroup', auth.checkAuth, function (req, res) {
     var username = req.user.username;
     var groupname = req.body.groupname.toLowerCase();
+    var user_to_add = req.body.useradd.toLowerCase();
+    //TODO verify username
     if (!groupname || groupname.length < 9) {
         res.send('Bad form submission', 200);
     }
@@ -143,25 +171,29 @@ app.post('/addgroup', auth.checkAuth, function (req, res) {
         } else {
             var list = body.members;
             var found = false;
+            var not_in = true;
             for (var i = 0; i < list['length']; i++) {
                 if (list[i] === username) {
                     found = true;
-                    break;
+                }
+                if (list[i] === user_to_add) {
+                    not_in = false;
                 }
             }
-            if (!found) {
-                body.members.push(username);
+            if (found && not_in) {
+                //User has permission
+                body.members.push(user_to_add);
                 groupdb.insert(body, groupname, function(err, body) {
                     if (err) {
                         res.send('Unable to add to group', 200);
                     } else {
-                        addUserToGroup(username, groupname);
+                        addUserToGroup(user_to_add, groupname);
                         console.log('Added user to group='+groupname);
                         res.send('Successfully added user to group', 200);
                     }
                 });
             } else {
-                res.send('Already in group', 200);
+                res.send("Already in group or you aren't in group", 200);
             }
         }
     });
@@ -314,7 +346,7 @@ function numTransactions(callback) {
         }
     });
 }
-
+/*
 app.post('/userinfo', auth.checkAuth, function(req, res) {
     var user_sender = req.body.usersender.toLowerCase();
     var user_target = req.body.usertarget.toLowerCase();
@@ -346,9 +378,9 @@ app.post('/userinfo', auth.checkAuth, function(req, res) {
         }
     });
 });
-
+*/
 app.post('/transactioninfo', auth.checkAuth, function(req, res) {
-    var username = req.body.username.toLowerCase();
+    var username = req.user.username;
     var transaction = req.body.transaction;
 
     if (username.length == 0 || transaction.length == 0) {
@@ -380,36 +412,6 @@ app.post('/transactioninfo', auth.checkAuth, function(req, res) {
         } else {
             res.send('Unable to find transaction', 200);
         }   
-    });
-});
-
-app.post('/groupinfo', auth.checkAuth, function(req, res) {
-    var username = req.user.username;
-    var groupname = req.body.groupname.toLowerCase();
-    //TODO param checking
-    groupdb.get(groupname, function (err, body) {
-        if (!err) {
-            var list = body.members;
-            var found = false;
-            for (var i = 0; i < list['length']; i++) {
-                if (list[i] === username) {
-                    found = true;
-                    break;
-                }
-            }
-            groupObject = {
-                display_name: body.display_name
-            };   
-            if (found) {
-                //Add all the private info because you're in the private group
-                groupObject.name = body.name;
-                groupObject.owner = body.owner;
-                groupObject.members = body.members;
-            }
-            res.send(groupObject, 200);       
-        } else {
-            res.send("Didn't find group", 200);
-        }
     });
 });
 

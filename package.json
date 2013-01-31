@@ -8,5 +8,6 @@
         "nano": "3.x",
         "connect": "2.7.x",
         "connect-couchdb": "0.2.x"
-    }
+        "validator": "0.4.x"
+  }
 }
