@@ -3,8 +3,7 @@ var db = require('./db');
 
 function checkAuth(req, res, next) {
     if (!req.session.user_id) {
-        // Todo: lets decouple our urls
-        res.redirect(301, '/login');
+        res.send(JSON.stringify({error: 'Not logged in'}));
     } else {
         db.users.get(req.session.user_id, function(err, doc) {
             req.user = doc;

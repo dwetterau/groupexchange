@@ -1,4 +1,5 @@
 var express = require('express');
+var connect = require('connect');
 var auth = require('./auth');
 var db = require('./db');
 
@@ -9,11 +10,16 @@ var nano = db.nano;
 
 var app = express();
 
+// Configure session store
+var ConnectCouchDB = require('connect-couchdb')(connect);
+var store = new ConnectCouchDB({name: 'sessions'});
+
 app.configure(function() {
     app.use(express.bodyParser());
     app.use(express.cookieParser());
-    app.use(express.cookieSession({
-        secret: 'test'
+    app.use(connect.session({
+        secret: '54b20410-6b04-11e2-bcfd-0800200c9a66',
+        store: store
     }));
     app.use(express.static(__dirname + '/public'));
 	  app.use('/lib', express.static(__dirname + '/client_lib'));
@@ -24,7 +30,6 @@ app.get('/secure', auth.checkAuth, function(req, res) {
 });
 
 app.get('/user/:username', auth.checkAuth, function(req, res) {
-    // TODO: Add permissions checking
     var username = req.params.username;
     userdb.get(username, function(err, doc) {
         if (err) {

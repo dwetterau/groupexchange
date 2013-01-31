@@ -3,7 +3,7 @@ var db = require('./db');
 var nano = db.nano;
 
 var commands = {
-    createdb: { 
+    createdbs: { 
         help: 'creates required databases',
         code: function() {
             db.databases.forEach(function(database) {
@@ -12,7 +12,7 @@ var commands = {
             return;
         }
     },
-    dropdb: {
+    dropdbs: {
         help: 'deletes all databases',
         code: function() {
             db.databases.forEach(function(database) {

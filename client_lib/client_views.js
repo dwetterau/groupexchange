@@ -56,6 +56,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
                 $.post('/login',
                        {username: $('#username_field').val(), password: $('#password_field').val()},
                        _.bind(function (val) {
+                           debugger;
                            var response = $.parseJSON(val);
                            if (response.logged_in) {
                                var username = response.username;
