@@ -254,7 +254,7 @@ app.get('/logout', auth.checkAuth, function(req, res) {
 
 app.post('/addtransaction', auth.checkAuth, function(req, res) {
     //The request will store the usernames of both of the parties in the transaction
-    var username1 = req.body.username1.toLowerCase();
+    var username1 = req.user.username;
     var username2 = req.body.username2.toLowerCase();
     var amount = req.body.amount;
     var direction = req.body.direction === 'to_other'; //normal direction is from username1 to username2

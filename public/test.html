@@ -1,0 +1,127 @@
+<html>
+<title>Group Exchange</title>
+<head>
+	<script src="lib/require.js" data-main="lib/basic.js"></script>
+</head>
+<body>
+<div>
+<h1>Group Exchange Test Page</h1>
+</div>
+
+<div>
+Create an account:
+<div>
+<form id="makeAccountForm" action="makeaccount" method="post">
+    <div>
+        <label for="username">Username: </label>
+        <input type="text" name="username" required="required"></input>
+    </div>
+    <div>
+        <label for="email">Email: </label>
+        <input type="email" name="email" required="required"></input>
+    </div>
+    <div>
+        <label for="firstname">First Name: </label>
+        <input type="text" name="firstname" required="required"></input>
+    </div>
+    <div>
+        <label for="lastname">Last Name: </label>
+        <input type="text" name="lastname" required="required"></input>
+    </div>
+    <div>
+        <label for="password">Password: </label>
+        <input type="password" name="password" required="required"></input>
+    </div>
+    <input type="submit" value="Create Account"></input>
+</form>
+</div>
+</div>
+
+<div>
+Login:
+<div>
+<form id="login" action="login" method="post">
+    <div>
+        <label for="username">Username: </label>
+        <input type="text" name="username" required="required"></input>
+    </div>
+    <div>
+        <label for="password">Password: </label>
+        <input type="password" name="password" required="required"></input>
+    </div>
+    <input type="submit" value="Login"></input>
+</form>
+</div>
+</div>
+
+<div>
+Make Transaction (Just for testing):
+<div>
+<form id="makeTransactionForm" action="addtransaction" method="post">
+    <div>
+        <label for="username2">Username 2: </label>
+        <input type="text" name="username2" required="required"></input>
+    </div>
+    <div>
+        <label for="amount">Amount: $</label>
+        <input type="number" name="amount" step="any" min="0" required="required"></input>
+    </div>
+    <div>
+        <input type="radio" name="direction" value="to_other" checked>To Other<br />
+        <input type="radio" name="direction" value="to_me">To Me
+    </div>
+    <div>
+        <label for="details">Details: </label>
+        <input type="text" name="details"></input>
+    </div>
+    <input type="submit" value="Make Transaction"></input>
+</form>
+</div>
+</div>
+
+<div>
+Transaction info lookup (Just for testing):
+<div>
+<form id="lookupTransactionForm" action="transactioninfo" method="post">
+    <div>
+        <label for="transaction">Transaction: </label>
+        <input type="text" name="transaction" required="required"></input>
+    </div>
+    <input type="submit" value="Lookup"></input>
+</form>
+</div>
+</div>
+
+<div>
+Create group form:
+<div>
+<form id="createGroupForm" action="makegroup" method="post">
+    <div>
+        <label for="groupname">Group name: </label>
+        <input type="text" name="groupname" required="required"></input>
+    </div>
+    <input type="submit" value="Create"></input>
+</form>
+</div>
+</div>
+
+<div>
+Add user to group form:
+<div>
+<form id="addToGroupForm" action="addgroup" method="post">
+    <div>
+        <label for="useradd">Username to add: </label>
+        <input type="text" name="useradd" required="required"></input>
+    </div>
+    <div>
+        <label for="groupname">Group name: </label>
+        <input type="text" name="groupname" required="required"></input>
+    </div>
+    <input type="submit" value="Add User"></input>
+</form>
+</div>
+
+</div>
+
+</body>
+</html>
