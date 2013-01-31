@@ -1,4 +1,5 @@
-var nano = require('nano')('http://localhost:5984');
+var settings = require('./settings').settings;
+var nano = require('nano')('http://' + settings.couchdb_hostname + ':' + settings.couchdb_port);
 var databases = ['users', 'transactions', 'groups', 'sessions'];
 databases.forEach(function(database) {
     exports[database] = nano.use(database);
