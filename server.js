@@ -52,11 +52,12 @@ app.get('/group/:name', auth.checkAuth, function(req, res) {
     var name = req.params.name;
     groupdb.get(name, function(err, doc) {
         if (err) {
-            res.send('Bad');
+            res.send(err)
+            //res.send('Bad');
         } else {
             var found = false;
             for (var i = 0; i < doc.members.length; i++) {
-                if (members[i] === req.user.username) {
+                if (doc.members[i] === req.user.username) {
                     found = true;
                     break;
                 }
@@ -78,24 +79,14 @@ app.post('/makeaccount', function(req, res) {
     var pass = req.body.password;
 
     try {
-        check(username).len(4,16).isAlphanumeric();;
+        check(username).len(4,16).isAlphanumeric();
         check(email).len(6,64).isEmail();
         check(first).len(1,64).isAlpha();
-        check(last).len(1,64).isAlpha();
-        //TODO password checking?
+        check(last).len(1,64).isAlpha(); //TODO allow hyphens in last name? / more regex
     } catch (e) {
-        res.send(e.message, 400)
-    }
-    
-    /*if (username.length < 4 ||
-        email.length === 0 ||
-        first.length === 0 ||
-        last.length === 0 ||
-        pass.length === 0) {
-        //TODO better account submission checking
-        res.send('Bad form submission', 400);
+        res.send(e.message, 400);
         return;
-    }*/
+    }
     
     userdb.head(username, function(err, body) {
         if (!err) {
@@ -128,11 +119,15 @@ app.post('/makeaccount', function(req, res) {
 
 app.post('/makegroup', auth.checkAuth, function(req, res) {
     var username = req.user.username;
-    var display_groupname = req.body.groupname.toLowerCase();
-    var groupname = escape(display_groupname);
-    if (!groupname || groupname.length < 4) {
-        res.send('Bad form submission', 200);
+    var groupname = req.body.groupname.toLowerCase();
+
+    try {
+        check(groupname).len(4,32);
+    } catch (e) {
+        res.send(e.message, 400);
+        return;
     }
+
     var group_name_combined = username + '-' + groupname; 
     groupdb.head(group_name_combined, function(err, body) {
         if (!err) {
@@ -140,7 +135,7 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
         } else {
             var groupObject = {
                 name: group_name_combined,
-                display_name: display_groupname,
+                display_name: groupname,
                 owner: username,
                 members: [username]
             };
@@ -161,10 +156,15 @@ app.post('/addgroup', auth.checkAuth, function (req, res) {
     var username = req.user.username;
     var groupname = req.body.groupname.toLowerCase();
     var user_to_add = req.body.useradd.toLowerCase();
-    //TODO verify username
-    if (!groupname || groupname.length < 9) {
-        res.send('Bad form submission', 200);
+    
+    try {
+        check(groupname).len(4,32);
+        check(user_to_add).len(4,16).isAlphanumeric();
+    } catch (e) {
+        res.send(e.message, 400);
+        return;
     }
+    
     groupdb.get(groupname, function(err, body) {
         if (err) {
             res.send('Unable to find group', 200);
@@ -219,12 +219,14 @@ app.post('/login', function(req, res) {
     var username = req.body.username.toLowerCase();
     var pass = req.body.password;
 
-    if (username.length == 0 || pass.length == 0) {
-        //TODO better login submission checking
-        res.send('Bad login submission', 400);
+    try {
+        check(username).len(4,16).isAlphanumeric();
+        check(pass).notNull()
+    } catch (e) {
+        res.send(e.message, 400);
         return;
     }
-
+    
     var response = {logged_in: false};
     userdb.get(username, function (err, body) {
         if (!err) {
@@ -259,6 +261,15 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     var amount = req.body.amount;
     var direction = req.body.direction === 'to_other'; //normal direction is from username1 to username2
     var createTime = new Date();
+    
+    try {
+        check(username2).len(4,16).isAlphanumeric();
+        check(amount).isNumeric()
+    } catch (e) {
+        res.send(e.message, 400);
+        return;
+    }
+    
     var transactionObject = {
         username1: username1,
         username2: username2,
@@ -346,48 +357,18 @@ function numTransactions(callback) {
         }
     });
 }
-/*
-app.post('/userinfo', auth.checkAuth, function(req, res) {
-    var user_sender = req.body.usersender.toLowerCase();
-    var user_target = req.body.usertarget.toLowerCase();
 
-    if (user_sender.length == 0 || user_target.length == 0) {
-        //TODO better login submission checking
-        res.send('Bad userinfo submission', 400);
-        return;
-    }
-    
-    userdb.get(user_target, function (err, body) {
-        if (!err) {
-            user_object = {
-                username: body.username,
-                firstname: body.firstname,
-                reputation: body.reputation
-                };
-            if (user_sender === user_target) {
-                //realease all private info TODO make this not spoofable
-                user_object.lastname = body.lastname;
-                user_object.transactions = body.transactions;
-                user_object.email = body.email;
-                user_object.groups = body.groups;
-            }
-            console.log("Retrieved user data for user="+body.username);
-            res.send(user_object, 200);
-        } else {
-            res.send('Unable to find user', 200);
-        }
-    });
-});
-*/
 app.post('/transactioninfo', auth.checkAuth, function(req, res) {
     var username = req.user.username;
     var transaction = req.body.transaction;
 
-    if (username.length == 0 || transaction.length == 0) {
-         //TODO better login submission checking
-        res.send('Bad transactioninfo submission', 400);
+    try {
+        check(transaction).notNull()
+    } catch (e) {
+        res.send(e.message, 400);
         return;
     }
+
     transactiondb.get(transaction, function (err, body) {
         if (!err) {
             if (!(username === body.username1 || username === body.username2)) {
@@ -419,9 +400,10 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
     var username = req.user.username;
     var transaction = req.body.transaction;
 
-    if (username.length == 0 || transaction.length == 0) {
-         //TODO better login submission checking
-        res.send('Bad transactioninfo submission', 400);
+    try {
+        check(transaction).notNull()
+    } catch (e) {
+        res.send(e.message, 400);
         return;
     }
     
