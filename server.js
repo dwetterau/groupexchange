@@ -9,6 +9,7 @@ var db = require('./db');
 var userdb = db.users;
 var transactiondb = db.transactions;
 var groupdb = db.groups;
+var groupmembersdb = db.groupmembers;
 var nano = db.nano;
 
 var app = express();
@@ -32,8 +33,13 @@ app.get('/secure', auth.checkAuth, function(req, res) {
     res.send('You are def logged in ' + req.user.firstname);
 });
 
-//TODO Change these to not just return the doc but copy it to another object?
+//Takes a couchDB doc and removes the private couchdb info from it
 // The doc itself has private couchDB stuff that Idk if we want to expose...
+function cleanDoc(doc) {
+  doc._rev = undefined;
+  doc._id = undefined;
+}
+
 app.get('/user/:username', auth.checkAuth, function(req, res) {
     var username = req.params.username;
     if (req.user.username !== username) {
@@ -43,6 +49,7 @@ app.get('/user/:username', auth.checkAuth, function(req, res) {
         if (err) {
             res.send('Bad');
         } else {
+            cleanDoc(doc);
             res.send(JSON.stringify(doc));
         }
     });
@@ -63,6 +70,7 @@ app.get('/group/:name', auth.checkAuth, function(req, res) {
                 }
             }
             if (found) {
+                cleanDoc(doc);
                 res.send(JSON.stringify(doc));
             } else {
                 res.send('Not able to view')
@@ -117,6 +125,7 @@ app.post('/makeaccount', function(req, res) {
     });
 });
 
+// Creates a group
 app.post('/makegroup', auth.checkAuth, function(req, res) {
     var username = req.user.username;
     var groupname = req.body.groupname.toLowerCase();
@@ -137,7 +146,6 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
                 name: group_name_combined,
                 display_name: groupname,
                 owner: username,
-                members: [username]
             };
             groupdb.insert(groupObject, group_name_combined, function(err, body) {
                 if (!err) {
@@ -152,6 +160,7 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
     });
 });
 
+// Adds a user to a group
 app.post('/addgroup', auth.checkAuth, function (req, res) {
     var username = req.user.username;
     var groupname = req.body.groupname.toLowerCase();
@@ -200,17 +209,16 @@ app.post('/addgroup', auth.checkAuth, function (req, res) {
 });
 
 function addUserToGroup(username, groupname) {
-    userdb.get(username, function(err, body) {
-        if (!err) {
-            if (!body.groups) {
-                body.groups = [];
-            }
-            body.groups.push(groupname);
-            userdb.insert(body, username, function(err, body) {
-                if (!err) {
-                    console.log("Successfully added group to user's account");
-                }
-            });
+    link_object = {
+      user: username,
+      group: groupname
+    };
+    groupmembersdb.insert(link_object, username+groupname, function(err, body) {
+        if (err) {
+            console.log("Failed to add user '" + username + "' to group '" 
+                + groupname + "'");
+        } else {
+            console.log("Added user '" + username + "' to group '" + groupname + "'");
         }
     });
 }
@@ -284,9 +292,7 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     if (req.body.details) {
         transactionObject.details = req.body.details;
     } 
-
-    //retrieve both users from the userdb
-    var user1, user2;
+    
     // The structure is reversed so that the callbacks work in order to serialize
     // the data retrievals.
     var makeTransaction = function(num_transactions) {
@@ -295,41 +301,18 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     
         console.log("Made new transasction="+transaction_name);
         transactionObject.id = transaction_name;
-        if (!user1.transactions) {
-            user1.transactions = [];    
-        }
-        if (!user2.transactions) { 
-            user2.transactions = [];
-        }
-        user1.transactions.unshift(transaction_name);
-        user2.transactions.unshift(transaction_name);
-
-        //need to add the new transaction, then update the two user entries
-        //TODO figure out how to roll back partial transactions 
+        
         transactiondb.insert(transactionObject, transaction_name, function(err, body) {
             if (err) {
                 res.send("Failed to add transaction.", 503);
             }
         });
-        userdb.insert(user1, username1, function(err, body) {
-            if (err) {
-                //shit... should we try to remove the transaction or just leave it?
-                res.send("Failed to add transaction.", 503);
-            }
-        });
-        userdb.insert(user2, username2, function(err, body) {
-            if (err) {
-                //shit... should we try to remove the transaction or just leave it?
-                res.send("Failed to add transaction.", 503);
-            }  
-        });
         res.send("Successfully made new transaction.", 200);
     };
 
     var getSecond = function() {
-        userdb.get(username2, function (err, body) {
+        userdb.head(username2, function (err, body) {
             if (!err) {
-                user2 = body;
                 numTransactions(makeTransaction);
             } else {
                 res.send("Retrieval failed.", 503);
@@ -337,9 +320,8 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
         });
     };
     
-    userdb.get(username1, function (err, body) {
+    userdb.head(username1, function (err, body) {
         if (!err) {
-            user1 = body;
             getSecond();
         } else {
             res.send("Retrieval failed.", 503);
@@ -369,27 +351,16 @@ app.post('/transactioninfo', auth.checkAuth, function(req, res) {
         return;
     }
 
-    transactiondb.get(transaction, function (err, body) {
+    transactiondb.get(transaction, function (err, doc) {
         if (!err) {
-            if (!(username === body.username1 || username === body.username2)) {
+            if (!(username === doc.username1 || username === doc.username2)) {
                 //User shouldn't see it even though it was found
                 res.send('Unable to find transaction', 200);                
                 return;
             }
             console.log("Retrieved transaction data for transaction="+transaction);
-            //Copy body into another object so we don't get private CouchDB stuff
-            var transactionObject = {
-                username1: body.username1,
-                username2: body.username2,
-                amount: body.amount,
-                direction: body.direction,
-                status: body.status, // user1 who made the transaction has approved it
-                id : body.id,
-                details: body.details,
-                createTime: body.createTime,
-                lastModifiedTime: body.lastModifiedTime
-            };
-            res.send(transactionObject, 200);
+            cleanDoc(doc);
+            res.send(doc, 200);
         } else {
             res.send('Unable to find transaction', 200);
         }   
