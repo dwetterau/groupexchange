@@ -36,8 +36,8 @@ app.get('/secure', auth.checkAuth, function(req, res) {
 //Takes a couchDB doc and removes the private couchdb info from it
 // The doc itself has private couchDB stuff that Idk if we want to expose...
 function cleanDoc(doc) {
-  doc._rev = undefined;
-  doc._id = undefined;
+    doc._rev = undefined;
+    doc._id = undefined;
 }
 
 app.get('/user/:username', auth.checkAuth, function(req, res) {
@@ -167,7 +167,7 @@ app.post('/addgroup', auth.checkAuth, function (req, res) {
     var user_to_add = req.body.useradd.toLowerCase();
     
     try {
-        check(groupname).len(4,32);
+        check(groupname).len(8,49);
         check(user_to_add).len(4,16).isAlphanumeric();
     } catch (e) {
         res.send(e.message, 400);
@@ -269,10 +269,22 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     var amount = req.body.amount;
     var direction = req.body.direction === 'to_other'; //normal direction is from username1 to username2
     var createTime = new Date();
-    
+    var details = req.body.details;
+    var group  = req.body.group;
+
     try {
         check(username2).len(4,16).isAlphanumeric();
-        check(amount).isNumeric()
+        //This is so hacky it's sad
+        amount -= 0
+        if (isNaN(amount)) {
+            throw "Invalid amount"
+        }
+        if (details) {
+            check(details).len(1,250);
+        }
+        if (group) {
+            check(group).len(8,49);
+        }
     } catch (e) {
         res.send(e.message, 400);
         return;
@@ -289,9 +301,12 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
         lastModifiedTime : createTime
     };
 
-    if (req.body.details) {
-        transactionObject.details = req.body.details;
+    if (details) {
+        transactionObject.details = details;
     } 
+    if (group) {
+        transactionObject.group = group;
+    }
     
     // The structure is reversed so that the callbacks work in order to serialize
     // the data retrievals.
