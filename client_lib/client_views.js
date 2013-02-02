@@ -2,9 +2,9 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
     var logged_in_user;
 
     var MainView = Backbone.View.extend({
-        template: "<span id='header'><%= header_content %></span>" +
+        template: "<div id='header'><%= header_content %></div>" +
             "<div id='sidebar_content'></div>" +
-            "<div id='main_content'></div>",
+            "<div class='container' id='main_content'></div>",
         header_content: '',
         sidebar_view: function() {
             if(!this._sidebar_view) {
@@ -36,14 +36,15 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
     var LoginView = Backbone.View.extend({
         // um, so yeah, this is probably dumb, but seems cool right now
         error: '',
-        template: "<form id='login' action='login' method='post'>" +
+        template: "<form class='login-form floating-box'>" +
+            "<h3> (title pending) Login</h3>" +
             "<span id='login_error'><%= error %></span>" +
-            "<label for='username'>Username: </label>" +
-            "<input id='username_field' type='text' name='username' required='required'></input>" +
-            "<label for='password'>Password:</label>" + 
-            "<input id='password_field' type='password' name='password' required='required'></input>" +
-            "<input id='login_button' type='button' value='Login'></input>" +
+            "<input class='input-block-level' id='username_field' type='text' name='username' required='required' placeholder='Email'></input>" +
+            "<input class='input-block-level' id='password_field' type='password' name='password' required='required' placeholder='Password'></input>" +
+            "<label class='checkbox'><input type='checkbox' value='remember-me'> Remember me</label>" +
+            "<button class='btn-large btn-primary' id='login_button' type='button'>Login</button>" +
             "</form>",
+        className: 'container',
 
         render: function() {
             this.$el.html(_.template(this.template, {'error' : this.error}));
@@ -56,7 +57,6 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
                 $.post('/login',
                        {username: $('#username_field').val(), password: $('#password_field').val()},
                        _.bind(function (val) {
-                           debugger;
                            var response = $.parseJSON(val);
                            if (response.logged_in) {
                                var username = response.username;

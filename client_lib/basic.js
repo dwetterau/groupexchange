@@ -4,7 +4,7 @@ require(["jquery", 'underscore', 'backbone', 'client_models', 'client_views', "j
     $('body').append(main_view.el);
     var login_view = new client_views.LoginView();
     login_view.render();
-    $('#main_content').append(login_view.el);
+    $('body').append(login_view.el);
 /*function init() {
     checklogin();
 }
