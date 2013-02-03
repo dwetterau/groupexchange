@@ -87,8 +87,8 @@ app.post('/makeaccount', function(req, res) {
     var pass = req.body.password;
 
     try {
-        check(username).len(4,16).isAlphanumeric();
-        check(email).len(6,64).isEmail();
+        check(username).len(4,256);
+        check(email).len(6,256).isEmail();
         check(first).len(1,64).isAlpha();
         check(last).len(1,64).isAlpha(); //TODO allow hyphens in last name? / more regex
     } catch (e) {
@@ -98,7 +98,8 @@ app.post('/makeaccount', function(req, res) {
     
     userdb.head(username, function(err, body) {
         if (!err) {
-            res.send('Username is already in use.', 200);
+            res.send(JSON.stringify({ success: false,
+                              result: 'Username is already in use.'}), 200);
         } else {
             var salt = auth.generateSalt(128);
             auth.hash_password(pass, salt, function(hashed_pass) {
@@ -115,9 +116,11 @@ app.post('/makeaccount', function(req, res) {
                 userdb.insert(newUser, username, function(err, body) {
                     if (!err) {
                         console.log('Made new user='+username);
-                        res.send('Account created!', 200);
+                        res.send(JSON.stringify({success: true,
+                                         result: 'Account created!'}), 200);
                     } else {
-                        res.send('Unable to make account at this time.', 200);
+                        res.send(JSON.stringify({success: false,
+                                         result: 'Unable to make account at this time.'}), 200);
                     }
                 });
             });
@@ -228,7 +231,7 @@ app.post('/login', function(req, res) {
     var pass = req.body.password;
 
     try {
-        check(username).len(4,16).isAlphanumeric();
+        check(username).len(4,256);
         check(pass).notNull()
     } catch (e) {
         res.send(e.message, 400);
@@ -259,7 +262,7 @@ app.post('/login', function(req, res) {
 
 app.get('/logout', auth.checkAuth, function(req, res) {
     delete req.session.user_id;
-    res.redirect(301, '/login');
+    res.redirect(301, '/');
 });
 
 app.post('/addtransaction', auth.checkAuth, function(req, res) {
