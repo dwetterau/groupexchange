@@ -2,7 +2,6 @@ var express = require('express');
 var connect = require('connect');
 var check = require('validator').check;
 var sanitize = require('validator').sanitize;
-var formidable = require('formidable');
 
 var auth = require('./auth');
 var db = require('./db');
@@ -59,25 +58,25 @@ app.get('/user/:username', auth.checkAuth, function(req, res) {
 
 app.get('/group/:name', auth.checkAuth, function(req, res) {
     var name = req.params.name;
-    groupdb.get(name, function(err, doc) {
+    var username = req.user.username;
+    groupmembersdb.view('members', 'members', {keys: [name]}, function(err, body) {
         if (err) {
-            res.send(err)
-            //res.send('Bad');
-        } else {
-            var found = false;
-            for (var i = 0; i < doc.members.length; i++) {
-                if (doc.members[i] === req.user.username) {
-                    found = true;
-                    break;
-                }
-            }
-            if (found) {
+            res.send(err);
+            return;
+        }
+        var group_members = body.rows.map(function(row) { return row.value; });
+        if (group_members.indexOf(username) == -1) {
+            res.send({'error': 'User not in group'});
+            return;
+        }
+        groupdb.get(name, function(err, doc) {
+            if (err) {
+                res.send(err);
+            } else {
                 cleanDoc(doc);
                 res.send(JSON.stringify(doc));
-            } else {
-                res.send('Not able to view')
             }
-        }
+        });
     });
 });
 
