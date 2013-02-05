@@ -2,6 +2,7 @@ var express = require('express');
 var connect = require('connect');
 var check = require('validator').check;
 var sanitize = require('validator').sanitize;
+var formidable = require('formidable');
 
 var auth = require('./auth');
 var db = require('./db');
@@ -27,6 +28,7 @@ app.configure(function() {
     }));
     app.use(express.static(__dirname + '/public'));
 	  app.use('/lib', express.static(__dirname + '/client_lib'));
+    app.use(express.limit('5mb')); //Limiting max form size for photo uploads
 });
 
 app.get('/secure', auth.checkAuth, function(req, res) {
@@ -460,6 +462,54 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
         }   
     });
 });
+
+app.post('/uploadphoto', auth.checkAuth, function(req, res) {
+  res.send('done');
+  console.log('uploaded ' + req.files.image.name);
+  console.log(req.files.image.size / 1024 | 0);
+  console.log(req.files.image.path);
+  console.log(req.body.title);
+/*    var form = formidable.IncomingForm();
+    var files = [];
+    var fields = [];
+
+    form.keepExtensions = true;
+    form.maxFieldsSize = 5*1024*1024;
+    
+    console.log("Form type: ", form.type);
+
+    form
+      .on('field', function(field, value) {
+        console.log(field, value);
+        fields.push([field, value]);
+    })
+      .on('fileBegin', function(name, file) {
+        console.log("Uploading file name: ", name, " with size: ", form.bytesExpected);
+        console.log("file is at: ", file.path);
+    })
+      .on('file', function(name, file) {
+        console.log("Uploading file name: ", name, " with size: ", form.bytesExpected);
+        console.log("file is at: ", file.path);
+        files.push([field, file]);
+    })
+      .on('progress', function(bytesReceived, bytesExpected) {
+        console.log("Received: ", bytesReceived, " bytes of: ", bytesExpected);
+    });
+  
+    form.on('end', function() {
+        res.send('Upload completed successfully');
+    });
+    
+    form.parse(req, function(err, fields, files) {
+        //Don't think I need anything here... except to later check the fields/file locations?  
+        if ( error ) {
+            console.log("ERROR: ", error);
+            res.send("Upload error", 500);
+        }
+    });
+*/
+});
+
 
 app.listen(3000);
 console.log('Server started');

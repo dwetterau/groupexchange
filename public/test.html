@@ -9,6 +9,19 @@
 </div>
 
 <div>
+Upload a photo:
+<div>
+<form id="photoUploadForm" action="uploadphoto" method="post" enctype="multipart/form-data">
+    <div>
+        <label for="image">Image: </label>
+        <input type="file" name="image" required="required"></input>
+    </div>
+    <input type="submit" value="Upload"></input>
+</form>
+</div>
+</div>
+
+<div>
 Create an account:
 <div>
 <form id="makeAccountForm" action="makeaccount" method="post">
