@@ -185,7 +185,14 @@ app.post('/addgroup', auth.checkAuth, function (req, res) {
             res.send({error: 'User already in group', success: false});
             return;
         }
-        addUserToGroup(user_to_add, groupname, res);
+        //Check to see if the user actually exists
+        userdb.head(user_to_add, function(err, body) {
+            if (!err) {
+                addUserToGroup(user_to_add, groupname, res);
+            } else {
+                res.send({error: 'Could not find user', success: false});
+            }
+        });
     });
 });
 
@@ -259,7 +266,7 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
 
     try {
         check(username2).len(4,16).isAlphanumeric();
-        check(amount).isInteger();
+        check(amount).isInt();
         if (details) {
             check(details).len(1,250);
         }
