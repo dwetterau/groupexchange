@@ -26,5 +26,14 @@ exports.views = {
                 emit(doc.username2, doc);
             }
         }
+    },
+    group_transactions: {
+        db: 'transactions',
+        name: 'grouptransactions',
+        data: {
+            map: function(doc) {
+                emit(doc.group, doc);   
+            }
+        }
     }
 };
