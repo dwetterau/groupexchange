@@ -258,12 +258,12 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     //The request will store the usernames of both of the parties in the transaction
     var username1 = req.user.username;
     var username2 = req.body.username2.toLowerCase();
+    var direction = req.body.direction == "true"; //normal direction is from username1 to username2
     var amount = req.body.amount;
-    var direction = req.body.direction === 'to_other'; //normal direction is from username1 to username2
     var createTime = new Date();
     var details = req.body.details;
     var group  = req.body.group;
-
+    
     try {
         check(username2).len(4,16).isAlphanumeric();
         check(amount).isInt();
@@ -277,14 +277,20 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
         res.send({error: e.message, success: false});
         return;
     }
-    
+   
+    var sender = username1, receiver = username2;
+    if (!direction) {
+        sender = username2;
+        receiver = username1;
+    }
+
     var transactionObject = {
-        username1: username1,
-        username2: username2,
+        sender: sender,
+        receiver: receiver,
+        creator: username1,
         amount: amount,
         direction: direction,
-        //still need to set the transaction id
-        status: 1, // user1 who made the transaction has approved it
+        status: 1, // creator has approved it
         createTime : createTime,
         lastModifiedTime : createTime
     };
@@ -299,7 +305,10 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     // The structure is reversed so that the callbacks work in order to serialize
     // the data retrievals.
     var makeTransaction = function(num_transactions) {
-        transaction_name =  username1 + '-' + username2 + '-' + num_transactions;
+        // This still uses username for the rare case that both users make the
+        // transaction at the same time and it gets keyed as the same thing.
+        // With creator first ordering this can't happen.
+        transaction_name = username1 + '-' + username2 + '-' + num_transactions;
     
         console.log("Made new transasction="+transaction_name);
         transactionObject.id = transaction_name;
@@ -313,22 +322,12 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
         });
     };
 
-    var getSecond = function() {
-        userdb.head(username2, function (err, body) {
+    userdb.head(username2, function (err, body) {
             if (!err) {
                 numTransactions(makeTransaction);
             } else {
                 res.send({error: "Retrieval failed", success: false});
             }
-        });
-    };
-    
-    userdb.head(username1, function (err, body) {
-        if (!err) {
-            getSecond();
-        } else {
-            res.send({error: "Retrieval failed", success: false});
-        }
     });
 });
 
@@ -356,7 +355,7 @@ app.post('/transactioninfo', auth.checkAuth, function(req, res) {
 
     transactiondb.get(transaction, function (err, doc) {
         if (!err) {
-            if (!(username === doc.username1 || username === doc.username2)) {
+            if (!(username === doc.sender || username === doc.receiver)) {
                 //User shouldn't see it even though it was found
                 res.send({error: 'Unable to find transaction', success: false});                
                 return;
@@ -383,41 +382,42 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
     
     transactiondb.get(transaction, function (err, body) {
         if (!err) {
-            if (!(username === body.username1 || username === body.username2)) {
+            if (!(username === body.sender || username === body.receiver)) {
                 //User shouldn't see it even though it was found
                 res.send({error: 'Unable to find transaction', success: false});                
                 return;
             }
-            //verify that the user can actually update the transaction
+            //Verify that the user can actually update the transaction
             // flow is represented by an fsm but the path should be always
             // increasing and will skip either 3 or 4 to get to 5
             // Remember the following rules:
-            // 1 = waiting on user 2
+            // 1 = if direction then waiting on receiver else waiting on sender
             // 2 = waiting on either user
-            // 3 = waiting on user 1
-            // 4 = waiting on user 2
+            // 3 = waiting on receiver
+            // 4 = waiting on sender
             // 5 = done
             var numToUpdateTo = -1;
             switch (body.status) {
                 case 1:
-                    if (username === body.username2) {
+                    if (body.direction && username === body.receiver ||
+                        !body.direction && username === body.sender) {
                         numToUpdateTo = 2;
                     }
                     break;
                 case 2:
-                    if (username === body.username1) {
-                        numToUpdateTo = 4;
-                    } else if (username === body.username2) {
+                    if (username === body.sender) {
                         numToUpdateTo = 3;
+                    } else if (username === body.receiver) {
+                        numToUpdateTo = 4;
                     }
                     break;
                 case 3:
-                    if (username === body.username1) {
+                    if (username === body.receiver) {
                         numToUpdateTo = 5;
                     }
                     break;
                 case 4:
-                    if (username === body.username2) {
+                    if (username === body.sender) {
                         numToUpdateTo = 5;
                     }
                 default:
@@ -429,6 +429,7 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
             if (numToUpdateTo == -1) {
                 //User not able to update transaction
                 res.send({error: 'Not able to update', success: false});
+                return;
             }
             body.status = numToUpdateTo;
             body.lastModifiedTime = new Date();
