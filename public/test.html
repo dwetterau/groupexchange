@@ -80,8 +80,8 @@ Make Transaction (Just for testing):
         <input type="number" name="amount" step="any" min="0" required="required"></input>
     </div>
     <div>
-        <input type="radio" name="direction" value="to_other" checked>To Other<br />
-        <input type="radio" name="direction" value="to_me">To Me
+        <input type="radio" name="direction" value="true" checked>I am sender<br />
+        <input type="radio" name="direction" value="false" >I am receiver
     </div>
     <div>
         <label for="details">Details: </label>
@@ -109,6 +109,21 @@ Transaction info lookup (Just for testing):
 </form>
 </div>
 </div>
+
+<div>
+Advance Transaction:
+<div>
+<form id="advanceTransactionForm" action="advancetransaction" method="post">
+    <div>
+        <label for="transaction">Transaction: </label>
+        <input type="text" name="transaction" required="required"></input>
+    </div>
+    <input type="submit" value="Advance"></input>
+</form>
+</div>
+</div>
+
+
 
 <div>
 Create group form:
