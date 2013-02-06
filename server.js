@@ -517,7 +517,7 @@ app.get('/user/:username/transactions', auth.checkAuth, function(req, res) {
     if (req.user.username !== username) {
         res.send({error: "You can't see other members's transactions", success: false});
     }
-    userdb.view('usertransactions', 'usertransactions', {keys: [username]}, 
+    transactiondb.view('usertransactions', 'usertransactions', {keys: [username]}, 
       function(err, body) {
         if (!err) {
             var transactions = body.rows.map(function(row) {   
