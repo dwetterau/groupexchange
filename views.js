@@ -22,8 +22,8 @@ exports.views = {
         name: 'usertransactions',
         data: {
             map: function(doc) {
-                emit(doc.username1, doc);
-                emit(doc.username2, doc);
+                emit(doc.sender, doc);
+                emit(doc.receiver, doc);
             }
         }
     },
