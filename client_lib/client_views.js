@@ -88,18 +88,59 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
     var SignupView = Backbone.View.extend({
         error: '',
-        template: "<form class='login-form floating-box'>" +
-            "<h3> Sign up for (title pending) </h3>" +
-            "<input class='input-block-level username_field' type='text' required='required' placeholder='Email'></input>" +
-            "<input class='input-block-level password_field' type='password' required='required' placeholder='Password'></input>" +
-            "<input class='input-block-level password_check' type='password' required='required' placeholder='Repeat Password'></input>" +
-            "<div class='error'><%=error%></div>" +
+        fields: {
+            Username: {
+                type: 'text',
+                required: 'required',
+                css_class: 'input-block-level username_field'
+            },
+            'First Name': {
+                type: 'text',
+                required: 'required',
+                css_class: 'firstname_field'
+            },
+            'Last Name': {
+                type: 'text',
+                required: 'required',
+                css_class: 'input-small lastname_field'
+            },
+            Email: {
+                type: 'text',
+                required: 'email',
+                css_class: 'input-block-level email_field'
+            },
+            Password: {
+                type: 'password',
+                required: 'required',
+                css_class: 'input-block-level password_field'
+            },
+            'Repeat Password': {
+                type: 'password',
+                required: 'required',
+                css_class: 'input-block-level password_check'
+            }
+        },
+        template: function() {
+            var fields_string = "";
+            _.each(this.fields, function(val, name) {
+                fields_string += '<input class="' + val.css_class +
+                    '" type="'+ val.type +
+                    '" required="' + val.required +
+                    '" placeholder="' + name + '"></input>';
+            });
+            var total_string = "<form class='login-form floating-box'>" + 
+            "<h3> Sign up for (title pending) </h3>";
+            total_string += fields_string;
+            total_string += "<div class='error'><%=error%></div>" +
             "<button href='#' class='btn-large btn-primary' id='signup_button'>Sign Up</button>" +
-            "<button href='#' class='btn-large cancel'>Cancel</button>",
+            "<button href='#' class='btn-large cancel'>Cancel</button>";
+            return total_string;
+        },
+        
         className: 'container',
 
         render: function() {
-            this.$el.html(_.template(this.template, {'error' : this.error}));
+            this.$el.html(_.template(this.template(), {'error' : this.error}));
             return this;
         },
         
@@ -109,18 +150,22 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
             'change .password_field,.password_check' : 'checkSame'
         },
 
-        sendSignup: function() {
+        sendSignup: function(e) {
+            e.preventDefault();
             if (this.checkSame() !== true) {
                 return;
             }
             var username = this.$('.username_field').val();
             var password = this.$('.password_field').val();
+            var first_name = this.$('.firstname_field').val();
+            var last_name = this.$('.lastname_field').val();
+            var email = this.$('.email_field').val();
             $.post('/makeaccount',
                    {username: username,
-                    email: username,
+                    email: email,
                     password: password,
-                    firstname: 'Robert',
-                    lastname: 'Test'}).done(_.bind(function(response) {
+                    firstname: first_name,
+                    lastname: last_name}).done(_.bind(function(response) {
                         var resp = JSON.parse(response);
                         if (resp.success) {
                             main_view.login(username);

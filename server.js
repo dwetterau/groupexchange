@@ -74,13 +74,14 @@ app.get('/group/:name', auth.checkAuth, function(req, res) {
                 res.send(err);
             } else {
                 cleanDoc(doc);
-                res.send(JSON.stringify(doc));
+                res.send(doc);
             }
         });
     });
 });
 
 app.post('/makeaccount', function(req, res) {
+    console.log("making account");
     var username = req.body.username.toLowerCase();
     var email = req.body.email.toLowerCase();
     var first = req.body.firstname;
@@ -149,7 +150,7 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
             var groupObject = {
                 name: group_name_combined,
                 display_name: groupname,
-                owner: username,
+                owner: username
             };
             groupdb.insert(groupObject, group_name_combined, function(err, body) {
                 if (!err) {

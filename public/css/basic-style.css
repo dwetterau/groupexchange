@@ -11,6 +11,11 @@ body {
 .login-form {
     background-color: #fff;
     max-width: 400px;
-    margin: auto;
+    margin: 30px auto auto;
     padding: 14px 30px 10px;
+}
+
+.firstname_field, .lastname_field {
+    width: auto;
+    margin: auto;
 }
