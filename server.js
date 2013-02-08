@@ -30,10 +30,6 @@ app.configure(function() {
     app.use(express.limit('5mb')); //Limiting max form size for photo uploads
 });
 
-app.get('/secure', auth.checkAuth, function(req, res) {
-    res.send('You are def logged in ' + req.user.firstname);
-});
-
 //Takes a couchDB doc and removes the private couchdb info from it
 // The doc itself has private couchDB stuff that Idk if we want to expose...
 function cleanDoc(doc) {
@@ -44,14 +40,14 @@ function cleanDoc(doc) {
 app.get('/user/:username', auth.checkAuth, function(req, res) {
     var username = req.params.username;
     if (req.user.username !== username) {
-        res.send('Other profile viewing not implemented yet');
+        res.send({error: 'Other profile viewing not implemented yet', success: false});
     }
     userdb.get(username, function(err, doc) {
         if (err) {
-            res.send('Bad');
+            res.send({error: err, success: false});
         } else {
             cleanDoc(doc);
-            res.send(JSON.stringify(doc));
+            res.send({user: doc, success: true});
         }
     });
 });
@@ -61,20 +57,20 @@ app.get('/group/:name', auth.checkAuth, function(req, res) {
     var username = req.user.username;
     groupmembersdb.view('members', 'members', {keys: [name]}, function(err, body) {
         if (err) {
-            res.send(err);
+            res.send({error: err, success: false});
             return;
         }
         var group_members = body.rows.map(function(row) { return row.value; });
         if (group_members.indexOf(username) == -1) {
-            res.send({'error': 'User not in group'});
+            res.send({error: 'User not in group', success: false});
             return;
         }
         groupdb.get(name, function(err, doc) {
             if (err) {
-                res.send(err);
+                res.send({error: err, success: false});
             } else {
                 cleanDoc(doc);
-                res.send(doc);
+                res.send({group: doc, success: true});
             }
         });
     });
@@ -94,14 +90,13 @@ app.post('/makeaccount', function(req, res) {
         check(first).len(1,64).isAlpha();
         check(last).len(1,64).isAlpha(); //TODO allow hyphens in last name? / more regex
     } catch (e) {
-        res.send(e.message, 400);
+        res.send({error: e.message, success: false});
         return;
     }
     
     userdb.head(username, function(err, body) {
         if (!err) {
-            res.send(JSON.stringify({ success: false,
-                              result: 'Username is already in use.'}), 200);
+            res.send({error: 'Username is already in use', success: false});
         } else {
             var salt = auth.generateSalt(128);
             auth.hash_password(pass, salt, function(hashed_pass) {
@@ -118,11 +113,10 @@ app.post('/makeaccount', function(req, res) {
                 userdb.insert(newUser, username, function(err, body) {
                     if (!err) {
                         console.log('Made new user='+username);
-                        res.send(JSON.stringify({success: true,
-                                         result: 'Account created!'}), 200);
+                        res.send({success: true});
                     } else {
-                        res.send(JSON.stringify({success: false,
-                                         result: 'Unable to make account at this time.'}), 200);
+                        res.send({error: 'Unable to make account at this time', 
+                            success: false});
                     }
                 });
             });
@@ -138,14 +132,14 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
     try {
         check(groupname).len(4,32);
     } catch (e) {
-        res.send(e.message, 400);
+        res.send({error: e.message, success: false});
         return;
     }
 
     var group_name_combined = username + '-' + groupname; 
     groupdb.head(group_name_combined, function(err, body) {
         if (!err) {
-            res.send('Groupname is in use.', 200); //Aka this user has already created a group with this name
+            res.send({error: 'Groupname is in use', success: false}); //Aka this user has already created a group with this name
         } else {
             var groupObject = {
                 name: group_name_combined,
@@ -155,10 +149,9 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
             groupdb.insert(groupObject, group_name_combined, function(err, body) {
                 if (!err) {
                     console.log('Made new group='+group_name_combined);
-                    addUserToGroup(username, group_name_combined); 
-                    res.send('Made group!', 200);
+                    addUserToGroup(username, group_name_combined, res); 
                 } else {
-                    res.send('Unable to make group at this time.', 200);
+                    res.send({error: 'Unable to make group at this time', success: false});
                 }
             });
         }
@@ -175,54 +168,47 @@ app.post('/addgroup', auth.checkAuth, function (req, res) {
         check(groupname).len(8,49);
         check(user_to_add).len(4,16).isAlphanumeric();
     } catch (e) {
-        res.send(e.message, 400);
+        res.send({error: e.message, success: false});
         return;
     }
-    
-    groupdb.get(groupname, function(err, body) {
+   
+    groupmembersdb.view('members', 'members', {keys: [groupname]}, function(err, body) {
         if (err) {
-            res.send('Unable to find group', 200);
-        } else {
-            var list = body.members;
-            var found = false;
-            var not_in = true;
-            for (var i = 0; i < list['length']; i++) {
-                if (list[i] === username) {
-                    found = true;
-                }
-                if (list[i] === user_to_add) {
-                    not_in = false;
-                }
-            }
-            if (found && not_in) {
-                //User has permission
-                body.members.push(user_to_add);
-                groupdb.insert(body, groupname, function(err, body) {
-                    if (err) {
-                        res.send('Unable to add to group', 200);
-                    } else {
-                        addUserToGroup(user_to_add, groupname);
-                        console.log('Added user to group='+groupname);
-                        res.send('Successfully added user to group', 200);
-                    }
-                });
-            } else {
-                res.send("Already in group or you aren't in group", 200);
-            }
+            res.send({error: err, success: false});
+            return;
         }
+        var group_members = body.rows.map(function(row) { return row.value; });
+        if (group_members.indexOf(username) == -1) {
+            res.send({error: 'User not in group', success: false});
+            return;
+        }
+        if (group_members.indexOf(user_to_add) != -1) {
+            res.send({error: 'User already in group', success: false});
+            return;
+        }
+        //Check to see if the user actually exists
+        userdb.head(user_to_add, function(err, body) {
+            if (!err) {
+                addUserToGroup(user_to_add, groupname, res);
+            } else {
+                res.send({error: 'Could not find user', success: false});
+            }
+        });
     });
 });
 
-function addUserToGroup(username, groupname) {
+function addUserToGroup(username, groupname, res) {
     link_object = {
       user: username,
       group: groupname
     };
     groupmembersdb.insert(link_object, username+groupname, function(err, body) {
         if (err) {
+            res.send({error: err, success: false});
             console.log("Failed to add user '" + username + "' to group '" 
                 + groupname + "'");
         } else {
+            res.send({success: true});
             console.log("Added user '" + username + "' to group '" + groupname + "'");
         }
     });
@@ -236,7 +222,7 @@ app.post('/login', function(req, res) {
         check(username).len(4,256);
         check(pass).notNull()
     } catch (e) {
-        res.send(e.message, 400);
+        res.send({error: e.message, success: false});
         return;
     }
     
@@ -252,12 +238,14 @@ app.post('/login', function(req, res) {
                 } else {
                     response.error = 'Invalid username or password';
                 }
-                res.send(JSON.stringify(response));
+                response.success = true;
+                res.send(response);
             });
         } else {
             //Couldn't find it in database OR database is unavailable
             response.error = 'Invalid username or password';
-            res.send(JSON.stringify(response));
+            response.success = false;
+            res.send(response);
         }
     });
 });
@@ -271,19 +259,15 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     //The request will store the usernames of both of the parties in the transaction
     var username1 = req.user.username;
     var username2 = req.body.username2.toLowerCase();
+    var direction = req.body.direction == "true"; //normal direction is from username1 to username2
     var amount = req.body.amount;
-    var direction = req.body.direction === 'to_other'; //normal direction is from username1 to username2
     var createTime = new Date();
     var details = req.body.details;
     var group  = req.body.group;
-
+    
     try {
         check(username2).len(4,16).isAlphanumeric();
-        //This is so hacky it's sad
-        amount -= 0
-        if (isNaN(amount)) {
-            throw "Invalid amount"
-        }
+        check(amount).isInt();
         if (details) {
             check(details).len(1,250);
         }
@@ -291,17 +275,23 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
             check(group).len(8,49);
         }
     } catch (e) {
-        res.send(e.message, 400);
+        res.send({error: e.message, success: false});
         return;
     }
-    
+   
+    var sender = username1, receiver = username2;
+    if (!direction) {
+        sender = username2;
+        receiver = username1;
+    }
+
     var transactionObject = {
-        username1: username1,
-        username2: username2,
+        sender: sender,
+        receiver: receiver,
+        creator: username1,
         amount: amount,
         direction: direction,
-        //still need to set the transaction id
-        status: 1, // user1 who made the transaction has approved it
+        status: 1, // creator has approved it
         createTime : createTime,
         lastModifiedTime : createTime
     };
@@ -316,36 +306,29 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     // The structure is reversed so that the callbacks work in order to serialize
     // the data retrievals.
     var makeTransaction = function(num_transactions) {
-
-        transaction_name =  username1 + '-' + username2 + '-' + num_transactions;
+        // This still uses username for the rare case that both users make the
+        // transaction at the same time and it gets keyed as the same thing.
+        // With creator first ordering this can't happen.
+        transaction_name = username1 + '-' + username2 + '-' + num_transactions;
     
         console.log("Made new transasction="+transaction_name);
         transactionObject.id = transaction_name;
         
         transactiondb.insert(transactionObject, transaction_name, function(err, body) {
             if (err) {
-                res.send("Failed to add transaction.", 503);
+                res.send({error: "Failed to add transaction", success: false});
+            } else {
+                res.send({success: true});
             }
         });
-        res.send("Successfully made new transaction.", 200);
     };
 
-    var getSecond = function() {
-        userdb.head(username2, function (err, body) {
+    userdb.head(username2, function (err, body) {
             if (!err) {
                 numTransactions(makeTransaction);
             } else {
-                res.send("Retrieval failed.", 503);
+                res.send({error: "Retrieval failed", success: false});
             }
-        });
-    };
-    
-    userdb.head(username1, function (err, body) {
-        if (!err) {
-            getSecond();
-        } else {
-            res.send("Retrieval failed.", 503);
-        }
     });
 });
 
@@ -367,22 +350,22 @@ app.post('/transactioninfo', auth.checkAuth, function(req, res) {
     try {
         check(transaction).notNull()
     } catch (e) {
-        res.send(e.message, 400);
+        res.send({error: e.message, success: false});
         return;
     }
 
     transactiondb.get(transaction, function (err, doc) {
         if (!err) {
-            if (!(username === doc.username1 || username === doc.username2)) {
+            if (!(username === doc.sender || username === doc.receiver)) {
                 //User shouldn't see it even though it was found
-                res.send('Unable to find transaction', 200);                
+                res.send({error: 'Unable to find transaction', success: false});                
                 return;
             }
             console.log("Retrieved transaction data for transaction="+transaction);
             cleanDoc(doc);
-            res.send(doc, 200);
+            res.send({transaction: doc, success: true});
         } else {
-            res.send('Unable to find transaction', 200);
+            res.send({error: 'Unable to find transaction', success: false});
         }   
     });
 });
@@ -394,47 +377,48 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
     try {
         check(transaction).notNull()
     } catch (e) {
-        res.send(e.message, 400);
+        res.send({error: e.message, success: false});
         return;
     }
     
     transactiondb.get(transaction, function (err, body) {
         if (!err) {
-            if (!(username === body.username1 || username === body.username2)) {
+            if (!(username === body.sender || username === body.receiver)) {
                 //User shouldn't see it even though it was found
-                res.send('Unable to find transaction', 200);                
+                res.send({error: 'Unable to find transaction', success: false});                
                 return;
             }
-            //verify that the user can actually update the transaction
+            //Verify that the user can actually update the transaction
             // flow is represented by an fsm but the path should be always
             // increasing and will skip either 3 or 4 to get to 5
             // Remember the following rules:
-            // 1 = waiting on user 2
+            // 1 = if direction then waiting on receiver else waiting on sender
             // 2 = waiting on either user
-            // 3 = waiting on user 1
-            // 4 = waiting on user 2
+            // 3 = waiting on receiver
+            // 4 = waiting on sender
             // 5 = done
             var numToUpdateTo = -1;
             switch (body.status) {
                 case 1:
-                    if (username === body.username2) {
+                    if (body.direction && username === body.receiver ||
+                        !body.direction && username === body.sender) {
                         numToUpdateTo = 2;
                     }
                     break;
                 case 2:
-                    if (username === body.username1) {
-                        numToUpdateTo = 4;
-                    } else if (username === body.username2) {
+                    if (username === body.sender) {
                         numToUpdateTo = 3;
+                    } else if (username === body.receiver) {
+                        numToUpdateTo = 4;
                     }
                     break;
                 case 3:
-                    if (username === body.username1) {
+                    if (username === body.receiver) {
                         numToUpdateTo = 5;
                     }
                     break;
                 case 4:
-                    if (username === body.username2) {
+                    if (username === body.sender) {
                         numToUpdateTo = 5;
                     }
                 default:
@@ -445,26 +429,27 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
             }
             if (numToUpdateTo == -1) {
                 //User not able to update transaction
-                res.send('Not able to update', 200);
+                res.send({error: 'Not able to update', success: false});
+                return;
             }
             body.status = numToUpdateTo;
             body.lastModifiedTime = new Date();
             transactiondb.insert(body, body.id, function (err, body) {
                 if (!err) {
                     console.log("Updated transaction="+transaction);
-                    res.send('Updated successfully', 200);
+                    res.send({success: true});
                 } else {
-                    res.send('Unable to update transaction', 200);
+                    res.send({error: 'Unable to update transaction', success: false});
                 }
             });
         } else {
-            res.send('Unable to find transaction', 200);
+            res.send({error: 'Unable to find transaction', success: false});
         }   
     });
 });
 
 app.post('/uploadphoto', auth.checkAuth, function(req, res) {
-  res.send('done');
+  res.send({success: true});
   console.log('uploaded ' + req.files.image.name);
   console.log(req.files.image.size / 1024 | 0);
   console.log(req.files.image.path);
@@ -508,6 +493,61 @@ app.post('/uploadphoto', auth.checkAuth, function(req, res) {
         }
     });
 */
+});
+
+app.get('/group/:name/members', auth.checkAuth, function(req, res) {
+    var name = req.params.name;
+    var username = req.user.username;
+    groupmembersdb.view('members', 'members', {keys: [name]}, function(err, body) {
+        if (err) {
+            res.send({error: err, success: false});
+            return;
+        }
+        var group_members = body.rows.map(function(row) { return row.value; });
+        if (group_members.indexOf(username) == -1) {
+            res.send({error: 'User not in group', success: false});
+            return;
+        } else {
+            res.send({members: group_members, success: true});
+        }
+    });
+});
+
+app.get('/user/:username/transactions', auth.checkAuth, function(req, res) {
+    var username = req.params.username;
+    if (req.user.username !== username) {
+        res.send({error: "You can't see other members's transactions", success: false});
+    }
+    transactiondb.view('usertransactions', 'usertransactions', {keys: [username]}, 
+      function(err, body) {
+        if (!err) {
+            var transactions = body.rows.map(function(row) {   
+                var trans = row.value;
+                cleanDoc(trans);
+                return trans;
+            });
+            res.send({transactions: transactions, success: true});
+        } else {
+            res.send({error: err, success: false});
+        }
+    });
+});
+
+app.get('/user/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
+    var groupname = req.params.groupname;
+    transactiondb.view('grouptransactions', 'grouptransactions', 
+        {keys: [[req.user.username, groupname]]}, function(err, body) {
+        if (!err) {
+            var transactions = body.rows.map(function(row) {   
+                var trans = row.value;
+                cleanDoc(trans);
+                return trans;
+            });
+            res.send({transactions: transactions, success: true});
+        } else {
+            res.send({error: err, success: false});
+        }
+    });
 });
 
 
