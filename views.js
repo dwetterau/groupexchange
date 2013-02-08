@@ -32,7 +32,8 @@ exports.views = {
         name: 'grouptransactions',
         data: {
             map: function(doc) {
-                emit(doc.group, doc);   
+                emit([doc.sender, doc.group], doc);   
+                emit([doc.receiver, doc.group], doc);   
             }
         }
     }

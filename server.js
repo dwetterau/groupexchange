@@ -532,5 +532,23 @@ app.get('/user/:username/transactions', auth.checkAuth, function(req, res) {
     });
 });
 
+app.get('/user/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
+    var groupname = req.params.groupname;
+    transactiondb.view('grouptransactions', 'grouptransactions', 
+        {keys: [[req.user.username, groupname]]}, function(err, body) {
+        if (!err) {
+            var transactions = body.rows.map(function(row) {   
+                var trans = row.value;
+                cleanDoc(trans);
+                return trans;
+            });
+            res.send({transactions: transactions, success: true});
+        } else {
+            res.send({error: err, success: false});
+        }
+    });
+});
+
+
 app.listen(3000);
 console.log('Server started');
