@@ -26,7 +26,7 @@ app.configure(function() {
         store: store
     }));
     app.use(express.static(__dirname + '/public'));
-	  app.use('/lib', express.static(__dirname + '/client_lib'));
+	app.use('/lib', express.static(__dirname + '/client_lib'));
     app.use(express.limit('5mb')); //Limiting max form size for photo uploads
 });
 
@@ -220,7 +220,7 @@ app.post('/login', function(req, res) {
 
     try {
         check(username).len(4,256);
-        check(pass).notNull()
+        check(pass).notNull();
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -238,6 +238,8 @@ app.post('/login', function(req, res) {
                 } else {
                     response.error = 'Invalid username or password';
                 }
+                //if (remember me checked)
+                req.session.maxAge = 604800; // one week
                 response.success = true;
                 res.send(response);
             });

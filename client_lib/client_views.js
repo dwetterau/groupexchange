@@ -1,5 +1,6 @@
 define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], function(Backbone, _, $, client_models) {
     var logged_in_user;
+    var app_events = _.clone(Backbone.Events);
 
     var MainView = Backbone.View.extend({
         template: "<div id='header'><%= header_content %></div>" +
@@ -18,25 +19,17 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
             this.$('#sidebar_content').append(this.sidebar_view().el);
             return this;
         },
-        login : function(username) {
-            this.render();
-            logged_in_user = new client_models.User({'username' : username});
-            logged_in_user.fetch().done(_.bind(function() {
-                this.header_content = logged_in_user.get('firstname');
-                this.$('#header').text(logged_in_user.get('firstname'));
-                logged_in_user.groups(_.bind(function(groups) {
-                    this.sidebar_view().groups = groups;
-                    this.sidebar_view().render();
-                    $('body').append(this.el);
-                }, this));
-            }, this));
+
+        show: function() {
+            this.sidebar_view().groups = this.groups;
+            this.sidebar_view().render();
+            $('body').append(this.el);
         }
     });
 
     var main_view = new MainView();
     
     var LoginView = Backbone.View.extend({
-        // um, so yeah, this is probably dumb, but seems cool right now
         error: '',
         template: "<form class='login-form floating-box'>" +
             "<h3> (title pending) Login</h3>" +
@@ -62,25 +55,28 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         sendLogin: function() {
             $.post('/login',
                    {username: $('#username_field').val(), password: $('#password_field').val()},
-                   _.bind(function (val) {
-                       var response = $.parseJSON(val);
+                   _.bind(function (response) {
                        if (response.logged_in) {
                            var username = response.username;
                            this.$el.hide();
-                           main_view.login(username);
+                           logged_in_user = new client_models.User(response.user);
+                           app_events.trigger("app:logged-in");
                        } else {
                            this.error = response.error;
                            this.render();
                        }
                    }, this)
                   );
-            console.log('login done');
         },
 
+        show: function() {
+            this.render();
+            $('body').append(this.$el);
+        },
+        
         showSignup: function() {
             this.$el.detach();
-            signup_view.render();
-            $('body').append(signup_view.$el);
+            app_events.trigger("app:signup");
         }
             
     });
@@ -143,6 +139,11 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
             this.$el.html(_.template(this.template(), {'error' : this.error}));
             return this;
         },
+
+        show: function() {
+            this.render();
+            $('body').append(this.$el);
+        },
         
         events: {
             'click #signup_button': 'sendSignup',
@@ -166,11 +167,11 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
                     password: password,
                     firstname: first_name,
                     lastname: last_name}).done(_.bind(function(response) {
-                        var resp = JSON.parse(response);
-                        if (resp.success) {
-                            main_view.login(username);
+                        if (response.success) {
+                            logged_in_user = new client_models.User(response.user);
+                            app_events.trigger("app:logged-in");
                         } else {
-                            this.error = resp.result;
+                            this.error = response.result;
                             this.render();
                         }
                     }, this));
@@ -191,8 +192,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
         cancel: function() {
             this.$el.detach();
-            login_view.render();
-            $('body').append(login_view.$el);
+            app_events.trigger("app:login");
         }
     });
 
@@ -211,6 +211,8 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
     });
             
     return { login_view: login_view,
-             main_view: main_view
+             main_view: main_view,
+             signup_view: signup_view,
+             app_events: app_events
            };
 });
