@@ -517,6 +517,24 @@ app.get('/group/:name/members', auth.checkAuth, function(req, res) {
     });
 });
 
+app.get('/user/:name/groups', auth.checkAuth, function(req, res) {
+    var name = req.params.name;
+    var username = req.user.username;
+    if (username != name) {
+        res.send({error: "You cannot view another user's groups yet", success: false});
+        return;
+    }
+    groupmembersdb.view('groups', 'groups', {keys: [name]}, function(err, body) {
+        if (err) {
+            res.send({error: err, success: false});
+            return;
+        }
+        var groups = body.rows.map(function(row) { return row.value; });
+        res.send({groups: groups, success: true});
+    });
+});
+
+
 app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
     var username = req.params.username;
     if (req.user.username !== username) {
