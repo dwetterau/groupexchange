@@ -47,6 +47,8 @@ app.get('/user/:username', auth.checkAuth, function(req, res) {
             res.send({error: err, success: false});
         } else {
             cleanDoc(doc);
+            doc.password = undefined;
+            doc.salt = undefined;
             res.send({user: doc, success: true});
         }
     });
@@ -515,12 +517,30 @@ app.get('/group/:name/members', auth.checkAuth, function(req, res) {
     });
 });
 
-app.get('/user/:username/transactions', auth.checkAuth, function(req, res) {
+app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
     var username = req.params.username;
     if (req.user.username !== username) {
         res.send({error: "You can't see other members's transactions", success: false});
     }
-    transactiondb.view('usertransactions', 'usertransactions', {keys: [username]}, 
+    transactiondb.view('alltransactions', 'alltransactions', {keys: [username]}, 
+      function(err, body) {
+        if (!err) {
+            var transactions = body.rows.map(function(row) {   
+                var trans = row.value;
+                cleanDoc(trans);
+                return trans;
+            });
+            res.send({transactions: transactions, success: true});
+        } else {
+            res.send({error: err, success: false});
+        }
+    });
+});
+
+app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
+    var username_other = req.params.username;
+    var username = req.user.username;
+    transactiondb.view('usertransactions', 'usertransactions', {keys: [[username, username_other]]}, 
       function(err, body) {
         if (!err) {
             var transactions = body.rows.map(function(row) {   

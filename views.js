@@ -17,13 +17,23 @@ exports.views = {
             }
         }
     },
-    transactions: {
+    all_transactions: {
         db: 'transactions',
-        name: 'usertransactions',
+        name: 'alltransactions',
         data: {
             map: function(doc) {
                 emit(doc.sender, doc);
                 emit(doc.receiver, doc);
+            }
+        }
+    },
+    user_transactions: {
+        db: 'transactions',
+        name: 'usertransactions',
+        data: {
+            map: function(doc) {
+                emit([doc.sender, doc.receiver], doc);
+                emit([doc.receiver, doc.sender], doc);
             }
         }
     },
