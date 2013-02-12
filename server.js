@@ -205,8 +205,8 @@ function addUserToGroup(username, groupname, res) {
     groupmembersdb.insert(link_object, username+groupname, function(err, body) {
         if (err) {
             res.send({error: err, success: false});
-            console.log("Failed to add user '" + username + "' to group '" 
-                + groupname + "'");
+            console.log("Failed to add user '" + username + "' to group '" +
+                        groupname + "'");
         } else {
             res.send({success: true});
             console.log("Added user '" + username + "' to group '" + groupname + "'");

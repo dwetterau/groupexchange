@@ -1,3 +1,3 @@
 require(['routes'], function(routes) {
-    routes.router.navigate('login', true);
+    // Nothing needed here
 });

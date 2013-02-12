@@ -23,7 +23,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         show: function() {
             this.sidebar_view().groups = this.groups;
             this.sidebar_view().render();
-            $('body').append(this.el);
+            $('body').html(this.el);
         }
     });
 
@@ -31,19 +31,41 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
     
     var LoginView = Backbone.View.extend({
         error: '',
-        template: "<form class='login-form floating-box'>" +
-            "<h3> (title pending) Login</h3>" +
-            "<span id='login_error'><%= error %></span>" +
-            "<input class='input-block-level' id='username_field' type='text' name='username' required='required' placeholder='Email'></input>" +
-            "<input class='input-block-level' id='password_field' type='password' name='password' required='required' placeholder='Password'></input>" +
-            "<label class='checkbox'><input type='checkbox' value='remember-me'> Remember me</label>" +
+        fields: [
+            {
+                name: 'Username',
+                type: 'text',
+                required: 'required',
+                css_class: 'input-block-level username_field'
+            },
+            {
+                name: 'Password',
+                type: 'password',
+                required: 'required',
+                css_class: 'input-block-level password_field'
+            }
+        ],
+        template: function() {
+            var fields_string = "";
+            _.each(this.fields, function(val) {
+                fields_string += '<input class="' + val.css_class +
+                    '" type="'+ val.type +
+                    '" required="' + val.required +
+                    '" placeholder="' + val.name + '"></input>';
+            });
+            var total_string = "<form class='login-form floating-box'>" + 
+            "<h3> (title pending) Login</h3>";
+            total_string += fields_string;
+            total_string += "<div class='error'><%=error%></div>" +
             "<button class='btn-large btn-primary' id='login_button' type='button'>Login</button>" +
-            "<button class='btn-large' id='signup_button' type='button'>Sign Up</button>" +
-            "</form>",
+            "<button class='btn-large' id='signup_button' type='button'>Signup</button>";
+            return total_string;
+        },
+
         className: 'container',
 
         render: function() {
-            this.$el.html(_.template(this.template, {'error' : this.error}));
+            this.$el.html(_.template(this.template(), {'error' : this.error}));
             return this;
         },
 
@@ -54,7 +76,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
         sendLogin: function() {
             $.post('/login',
-                   {username: $('#username_field').val(), password: $('#password_field').val()},
+                   {username: $('.username_field').val(), password: $('.password_field').val()},
                    _.bind(function (response) {
                        if (response.logged_in) {
                            var username = response.username;
@@ -71,7 +93,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
         show: function() {
             this.render();
-            $('body').append(this.$el);
+            $('body').html(this.$el);
         },
         
         showSignup: function() {
@@ -84,45 +106,51 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
     var SignupView = Backbone.View.extend({
         error: '',
-        fields: {
-            Username: {
+        fields: [
+            {
+                name: 'Username',
                 type: 'text',
                 required: 'required',
                 css_class: 'input-block-level username_field'
             },
-            'First Name': {
+            {
+                name: 'First Name',
                 type: 'text',
                 required: 'required',
                 css_class: 'firstname_field'
             },
-            'Last Name': {
+            {
+                name: 'Last Name',
                 type: 'text',
                 required: 'required',
                 css_class: 'input-small lastname_field'
             },
-            Email: {
+            {
+                name: 'Email',
                 type: 'text',
                 required: 'email',
                 css_class: 'input-block-level email_field'
             },
-            Password: {
+            {
+                name: 'Password',
                 type: 'password',
                 required: 'required',
                 css_class: 'input-block-level password_field'
             },
-            'Repeat Password': {
+            {
+                name: 'Repeat Password',
                 type: 'password',
                 required: 'required',
                 css_class: 'input-block-level password_check'
             }
-        },
+        ],
         template: function() {
             var fields_string = "";
-            _.each(this.fields, function(val, name) {
+            _.each(this.fields, function(val) {
                 fields_string += '<input class="' + val.css_class +
                     '" type="'+ val.type +
                     '" required="' + val.required +
-                    '" placeholder="' + name + '"></input>';
+                    '" placeholder="' + val.name + '"></input>';
             });
             var total_string = "<form class='login-form floating-box'>" + 
             "<h3> Sign up for (title pending) </h3>";
@@ -142,7 +170,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
         show: function() {
             this.render();
-            $('body').append(this.$el);
+            $('body').html(this.$el);
         },
         
         events: {
