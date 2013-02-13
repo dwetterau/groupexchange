@@ -256,7 +256,7 @@ app.post('/login', function(req, res) {
 
 app.get('/logout', auth.checkAuth, function(req, res) {
     delete req.session.user_id;
-    res.redirect(301, '/');
+    res.send({success: true});
 });
 
 app.post('/addtransaction', auth.checkAuth, function(req, res) {
@@ -352,7 +352,7 @@ app.post('/transactioninfo', auth.checkAuth, function(req, res) {
     var transaction = req.body.transaction;
 
     try {
-        check(transaction).notNull()
+        check(transaction).notNull();
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -379,7 +379,7 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
     var transaction = req.body.transaction;
 
     try {
-        check(transaction).notNull()
+        check(transaction).notNull();
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -458,45 +458,6 @@ app.post('/uploadphoto', auth.checkAuth, function(req, res) {
   console.log(req.files.image.size / 1024 | 0);
   console.log(req.files.image.path);
   console.log(req.body.title);
-/*    var form = formidable.IncomingForm();
-    var files = [];
-    var fields = [];
-
-    form.keepExtensions = true;
-    form.maxFieldsSize = 5*1024*1024;
-    
-    console.log("Form type: ", form.type);
-
-    form
-      .on('field', function(field, value) {
-        console.log(field, value);
-        fields.push([field, value]);
-    })
-      .on('fileBegin', function(name, file) {
-        console.log("Uploading file name: ", name, " with size: ", form.bytesExpected);
-        console.log("file is at: ", file.path);
-    })
-      .on('file', function(name, file) {
-        console.log("Uploading file name: ", name, " with size: ", form.bytesExpected);
-        console.log("file is at: ", file.path);
-        files.push([field, file]);
-    })
-      .on('progress', function(bytesReceived, bytesExpected) {
-        console.log("Received: ", bytesReceived, " bytes of: ", bytesExpected);
-    });
-  
-    form.on('end', function() {
-        res.send('Upload completed successfully');
-    });
-    
-    form.parse(req, function(err, fields, files) {
-        //Don't think I need anything here... except to later check the fields/file locations?  
-        if ( error ) {
-            console.log("ERROR: ", error);
-            res.send("Upload error", 500);
-        }
-    });
-*/
 });
 
 app.get('/group/:name/members', auth.checkAuth, function(req, res) {
@@ -517,8 +478,8 @@ app.get('/group/:name/members', auth.checkAuth, function(req, res) {
     });
 });
 
-app.get('/user/:name/groups', auth.checkAuth, function(req, res) {
-    var name = req.params.name;
+app.get('/user/:username/groups', auth.checkAuth, function(req, res) {
+    var name = req.params.username;
     var username = req.user.username;
     if (username != name) {
         res.send({error: "You cannot view another user's groups yet", success: false});

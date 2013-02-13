@@ -4,27 +4,29 @@ define('client_models', ['backbone', 'underscore'], function(Backbone, _) {
         idAttribute: 'username',
         urlRoot: '/user',
         groups: function(callback) {
-            if (this._groups) {
-                callback(this._groups);
-            } else {
-                complete_callback = _.after(this.get('groups').length, callback);
-                this._groups = new GroupsForUser();
-                _.each(this.get('groups'), function(name) {
-                    var group = new Group({name: name});
-                    group.fetch().done(_.bind(function() {
-                        complete_callback(this._groups);
-                    }, this));
-                    this._groups.add(group);
-                }, this);
+            if (this.get('groups')) {
+                return this.get('groups');
             }
+            var groups = new GroupsForUser();
+            groups.url = 'user/' + this.get('username') + '/groups';
+            groups.fetch({success: callback});
+        },
+        parse: function(data) {
+            return data.user;
         }
+            
     });
     var Group = Backbone.Model.extend({
         idAttribute: 'name',
         urlRoot: '/group'
     });
     var GroupsForUser = Backbone.Collection.extend({
-        model: Group
+        model: Group,
+        parse: function(data) {
+            return _.map(data.groups, function(item){
+                return {name: item};
+            });
+        }
     });
     return { User :  User,
              Group: Group,

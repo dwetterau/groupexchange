@@ -21,11 +21,18 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         },
 
         show: function() {
-            this.sidebar_view().groups = this.groups;
-            this.sidebar_view().render();
-            $('body').html(this.el);
+            if (!logged_in_user) {
+                app_events.trigger("app:show-login");
+                return;
+            }
+            logged_in_user.groups(_.bind(function(groups) {
+                this.sidebar_view().groups = groups;
+                this.sidebar_view().render();
+                this.render();
+                $('body').html(this.el);
+            }, this));
         }
-    });
+   });
 
     var main_view = new MainView();
     
@@ -81,8 +88,10 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
                        if (response.logged_in) {
                            var username = response.username;
                            this.$el.hide();
-                           logged_in_user = new client_models.User(response.user);
-                           app_events.trigger("app:logged-in");
+                           logged_in_user = new client_models.User({username: username});
+                           logged_in_user.fetch({success: function() {
+                               app_events.trigger("app:logged-in");
+                           }});
                        } else {
                            this.error = response.error;
                            this.render();
@@ -220,7 +229,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
         cancel: function() {
             this.$el.detach();
-            app_events.trigger("app:login");
+            app_events.trigger("app:show-login");
         }
     });
 
