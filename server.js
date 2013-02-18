@@ -10,6 +10,7 @@ var userdb = db.users;
 var transactiondb = db.transactions;
 var groupdb = db.groups;
 var groupmembersdb = db.groupmembers;
+var personaldb = db.personal;
 var nano = db.nano;
 
 var app = express();
@@ -79,18 +80,17 @@ app.get('/group/:name', auth.checkAuth, function(req, res) {
 });
 
 app.post('/makeaccount', function(req, res) {
-    console.log("making account");
     var username = req.body.username.toLowerCase();
     var email = req.body.email.toLowerCase();
-    var first = req.body.firstname;
-    var last = req.body.lastname;
+    //var first = req.body.firstname;
+    //var last = req.body.lastname;
     var pass = req.body.password;
 
     try {
         check(username).len(4,256);
         check(email).len(6,256).isEmail();
-        check(first).len(1,64).isAlpha();
-        check(last).len(1,64).isAlpha(); //TODO allow hyphens in last name? / more regex
+        //check(first).len(1,64).isAlpha();
+        //check(last).len(1,64).isAlpha(); //TODO allow hyphens in last name? / more regex
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -106,8 +106,8 @@ app.post('/makeaccount', function(req, res) {
                 var newUser = {
                     username: username,
                     email: email,
-                    firstname: first,
-                    lastname: last,
+                    //firstname: first,
+                    //lastname: last,
                     password: hashed_pass,
                     salt: salt,
                     reputation: 0
@@ -124,6 +124,67 @@ app.post('/makeaccount', function(req, res) {
             });
         }
     });
+});
+
+app.post('/updateprofile', auth.checkAuth, function(req, res) {
+    var username = req.user.username;
+    var firstname = req.body.firstname;
+    var lastname = req.body.lastname;
+
+    var allNull = true
+    if (firstname) {
+        allNull = false
+        try {
+            check(firstname).len(1,64).isAlpha();
+        } catch (e) {
+            res.send({error: e, success: false});
+            return;
+        }
+    }
+    if (lastname) {
+        allNull = false
+        try {
+            check(lastname).len(1,64).isAlpha();
+        } catch (e) {
+            res.send({error: e, success: false});
+            return;
+        }
+    }
+    if (allNull) {
+        res.send({error: "Nothing to update", success: false});
+        return;
+    }
+    personaldb.get(username, function(err, body) {
+        if (err) {
+            object = {
+                username: username,
+                firstname: firstname,
+                lastname: lastname
+            };
+            personaldb.insert(object, username, function(err, body) {
+                if (err) {
+                    res.send({error: err, success: false});
+                } else {
+                    res.send({success: true});
+                }
+            });
+        } else {
+            if (!body.firstname) {
+                body.firstname = firstname;
+            }
+            if (!body.lastname) {
+                body.lastname = lastname;
+            }
+            personaldb.insert(body, username, function(err, body) {
+                if (err) {
+                    res.send({error: err, success: false});
+                } else {
+                    res.send({success: true});
+                }
+            });
+        }
+    });
+
 });
 
 // Creates a group

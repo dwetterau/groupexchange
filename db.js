@@ -1,6 +1,6 @@
 var settings = require('./settings').settings;
 var nano = require('nano')('http://' + settings.couchdb_hostname + ':' + settings.couchdb_port);
-var databases = ['users', 'transactions', 'groups', 'sessions', 'groupmembers'];
+var databases = ['users', 'transactions', 'groups', 'sessions', 'groupmembers', 'personal'];
 databases.forEach(function(database) {
     exports[database] = nano.use(database);
 });
