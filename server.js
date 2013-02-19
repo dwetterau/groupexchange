@@ -11,6 +11,7 @@ var transactiondb = db.transactions;
 var groupdb = db.groups;
 var groupmembersdb = db.groupmembers;
 var personaldb = db.personal;
+var privacydb = db.privacy;
 var nano = db.nano;
 
 var app = express();
@@ -43,13 +44,11 @@ app.get('/user/:username', auth.checkAuth, function(req, res) {
     if (req.user.username !== username) {
         res.send({error: 'Other profile viewing not implemented yet', success: false});
     }
-    userdb.get(username, function(err, doc) {
+    personaldb.get(username, function(err, doc) {
         if (err) {
             res.send({error: err, success: false});
         } else {
             cleanDoc(doc);
-            doc.password = undefined;
-            doc.salt = undefined;
             res.send({user: doc, success: true});
         }
     });
@@ -82,15 +81,11 @@ app.get('/group/:name', auth.checkAuth, function(req, res) {
 app.post('/makeaccount', function(req, res) {
     var username = req.body.username.toLowerCase();
     var email = req.body.email.toLowerCase();
-    //var first = req.body.firstname;
-    //var last = req.body.lastname;
     var pass = req.body.password;
 
     try {
         check(username, 'username');
         check(email, 'email');
-        //check(first).len(1,64).isAlpha();
-        //check(last).len(1,64).isAlpha(); //TODO allow hyphens in last name? / more regex
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -106,8 +101,6 @@ app.post('/makeaccount', function(req, res) {
                 var newUser = {
                     username: username,
                     email: email,
-                    //firstname: first,
-                    //lastname: last,
                     password: hashed_pass,
                     salt: salt,
                     reputation: 0
@@ -115,7 +108,12 @@ app.post('/makeaccount', function(req, res) {
                 userdb.insert(newUser, username, function(err, body) {
                     if (!err) {
                         console.log('Made new user='+username);
-                        res.send({success: true});
+                        personal_object = {
+                            username: username,
+                            email: email
+                        }
+                        makeBasicPermissions(username, personal_object, 
+                            res, makeBasicProfile);
                     } else {
                         res.send({error: 'Unable to make account at this time', 
                             success: false});
@@ -126,10 +124,51 @@ app.post('/makeaccount', function(req, res) {
     });
 });
 
+function makeBasicPermissions(username, personal_object, res, callback) {
+    object = {
+        global: {
+            firstname: true,
+            lastname: false,
+            email: false,
+            username: true,
+            reputation: true
+        },
+        partners: {
+            firstname: true,
+            lastname: true,
+            email: true,
+            username: true,
+            reputation: true
+        }
+    };
+    privacydb.insert(object, username, function(err, body) {
+        if (!err) {
+            callback(username, personal_object, res);
+        } else {
+            res.send({error: err, success: false});
+        }
+    });
+}
+
+function makeBasicProfile(username, object, res) {
+    personaldb.insert(object, username, function(err, body) {
+        if (!err) {
+            res.send({success: true});
+        } else {
+            res.send({error: err, success: false});
+        }
+    });
+}
+
+app.post('/updatepermissions', auth.checkAuth, function(req, res) {
+    res.send("NOT IMPLEMENTED"); //TODO: Implement this
+});
+
 app.post('/updateprofile', auth.checkAuth, function(req, res) {
     var username = req.user.username;
     var firstname = req.body.firstname;
     var lastname = req.body.lastname;
+    var email = req.body.email;
 
     var allNull = true
     if (firstname) {
@@ -150,6 +189,15 @@ app.post('/updateprofile', auth.checkAuth, function(req, res) {
             return;
         }
     }
+    if (email) {
+        allNull = false
+        try {
+            check(email, "email");
+        } catch (e) {
+            res.send({error: e, success: false});
+            return;
+        }
+    }
     if (allNull) {
         res.send({error: "Nothing to update", success: false});
         return;
@@ -159,7 +207,8 @@ app.post('/updateprofile', auth.checkAuth, function(req, res) {
             object = {
                 username: username,
                 firstname: firstname,
-                lastname: lastname
+                lastname: lastname,
+                email: email
             };
             personaldb.insert(object, username, function(err, body) {
                 if (err) {
@@ -169,11 +218,14 @@ app.post('/updateprofile', auth.checkAuth, function(req, res) {
                 }
             });
         } else {
-            if (!body.firstname) {
+            if (firstname) {
                 body.firstname = firstname;
             }
-            if (!body.lastname) {
+            if (lastname) {
                 body.lastname = lastname;
+            }
+            if (email) {
+                body.email = email;
             }
             personaldb.insert(body, username, function(err, body) {
                 if (err) {
