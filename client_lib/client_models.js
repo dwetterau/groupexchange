@@ -12,6 +12,9 @@ define('client_models', ['backbone', 'underscore'], function(Backbone, _) {
             groups.fetch({success: callback});
         },
         parse: function(data) {
+            if (data.error || data.success === false) {
+                return {failed: true};
+            }
             return data.user;
         }
             

@@ -2,35 +2,56 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
     var logged_in_user;
     var app_events = _.clone(Backbone.Events);
 
+    var SidebarView = Backbone.View.extend({
+        tagName: "ul",
+        entryTemplate: "<li><a href=<%= entry_url %>><%= entry_title %></a></li>",
+        groups: [],
+        render: function() {
+            this.$el.empty();
+            this.groups.each(function(group) {
+                this.$el.append(_.template(this.entryTemplate, { entry_url: group.url(), entry_title: group.get('name')}));
+            }, this);
+        }
+    });
+
     var MainView = Backbone.View.extend({
+        initialize: function() {
+            this.sidebar_view = new SidebarView();
+        },
+
         template: "<div id='header'><%= header_content %></div>" +
-            "<div id='sidebar_content'></div>" +
             "<div class='container' id='main_content'></div>",
         header_content: '',
-        sidebar_view: function() {
-            if(!this._sidebar_view) {
-                this._sidebar_view = new SidebarView();
-            }
-            return this._sidebar_view;
-        },
         
         render: function() {
             this.$el.html(_.template(this.template, {'header_content' : this.header_content}));
-            this.$('#sidebar_content').append(this.sidebar_view().el);
+            this.$el.append(this.sidebar_view.el);
+            this.sidebar_view.render();
             return this;
         },
 
         show: function() {
             if (!logged_in_user) {
-                app_events.trigger("app:show-login");
+                logged_in_user = new client_models.User({username: 'me'});
+                logged_in_user.fetch({
+                    success: _.bind(function() {
+                        if (logged_in_user.get('failed')) {
+                            app_events.trigger("app:show-login");
+                        } else {
+                            // If user is logged in, then load main view
+                            this.show();
+                        }
+                    }, this)
+                });
                 return;
+            } else {
+                logged_in_user.groups(_.bind(function(groups) {
+                    this.sidebar_view.groups = groups;
+                    this.sidebar_view.render();
+                    this.render();
+                    $('body').html(this.el);
+                }, this));
             }
-            logged_in_user.groups(_.bind(function(groups) {
-                this.sidebar_view().groups = groups;
-                this.sidebar_view().render();
-                this.render();
-                $('body').html(this.el);
-            }, this));
         }
    });
 
@@ -236,16 +257,6 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
     var signup_view = new SignupView();
             
 
-    var SidebarView = Backbone.View.extend({
-        tagName: "ul",
-        entryTemplate: "<li><a href=<%= entry_url %>><%= entry_title %></a></li>",
-        groups: [],
-        render: function() {
-            this.groups.each(function(group) {
-                this.$el.append(_.template(this.entryTemplate, { entry_url: group.url(), entry_title: group.get('name')}));
-            }, this);
-        }
-    });
             
     return { login_view: login_view,
              main_view: main_view,
