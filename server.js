@@ -668,6 +668,40 @@ app.get('/user/:groupname/grouptransactions', auth.checkAuth, function(req, res)
     });
 });
 
+//New stuff I'll have to move over ======================================
+// This is serialized for now.. I'll probably want to change that
+function getNewPID(callback) {
+    userdb.get('c', function(err, body) {
+        if (err) {
+            //Start a new counter. This should only happen once
+            nano.db.get('users', function(err, body) {
+                var num = body.doc_count;
+                if (err) {
+                    //TODO... um crap
+                } else {
+                    userdb.insert({num: num}, 'c', function(err, body) {
+                        if (err) {
+                            //TODO... redo?
+                        } else {
+                            callback(num);
+                        }
+                    });
+                }
+            });
+        } else {
+            body.num += 1;
+            var num = body.num;
+            userdb.insert(body, 'c', function(err, body) {
+                if (err) {
+                    //try again
+                    getNewPID(callback);
+                } else {
+                    callback(num);
+                }
+            });
+        }
+    });
+}
 
 app.listen(3000);
 console.log('Server started');
