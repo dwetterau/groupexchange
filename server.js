@@ -39,6 +39,10 @@ function cleanDoc(doc) {
 
 app.get('/user/:username', auth.checkAuth, function(req, res) {
     var username = req.params.username;
+    // If we get a request for "me", then send back the logged in users information
+    if (username === 'me') {
+        username = req.user.username;
+    }
     if (req.user.username !== username) {
         res.send({error: 'Other profile viewing not implemented yet', success: false});
     }

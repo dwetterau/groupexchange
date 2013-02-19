@@ -1,9 +1,17 @@
 var crypto = require('crypto');
 var db = require('./db');
 
+function is_logged_in(req) {
+    if (req.session.user_id) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 function checkAuth(req, res, next) {
-    if (!req.session.user_id) {
-        res.send(JSON.stringify({error: 'Not logged in'}));
+    if (!is_logged_in(req)) {
+        res.send(JSON.stringify({error: 'Not logged in', success: false}));
     } else {
         db.users.get(req.session.user_id, function(err, doc) {
             req.user = doc;
