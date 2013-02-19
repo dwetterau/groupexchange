@@ -1,7 +1,7 @@
 var express = require('express');
 var connect = require('connect');
-var check = require('validator').check;
-var sanitize = require('validator').sanitize;
+var check = require('./validate').check;//require('validator').check;
+//var sanitize = require('validator').sanitize;
 
 var auth = require('./auth');
 var db = require('./db');
@@ -87,8 +87,8 @@ app.post('/makeaccount', function(req, res) {
     var pass = req.body.password;
 
     try {
-        check(username).len(4,256);
-        check(email).len(6,256).isEmail();
+        check(username, 'username');
+        check(email, 'email');
         //check(first).len(1,64).isAlpha();
         //check(last).len(1,64).isAlpha(); //TODO allow hyphens in last name? / more regex
     } catch (e) {
@@ -135,7 +135,7 @@ app.post('/updateprofile', auth.checkAuth, function(req, res) {
     if (firstname) {
         allNull = false
         try {
-            check(firstname).len(1,64).isAlpha();
+            check(firstname, "name");
         } catch (e) {
             res.send({error: e, success: false});
             return;
@@ -144,7 +144,7 @@ app.post('/updateprofile', auth.checkAuth, function(req, res) {
     if (lastname) {
         allNull = false
         try {
-            check(lastname).len(1,64).isAlpha();
+            check(lastname, "name");
         } catch (e) {
             res.send({error: e, success: false});
             return;
@@ -193,7 +193,7 @@ app.post('/makegroup', auth.checkAuth, function(req, res) {
     var groupname = req.body.groupname.toLowerCase();
 
     try {
-        check(groupname).len(4,32);
+        check(groupname, "groupname");
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -228,8 +228,8 @@ app.post('/addgroup', auth.checkAuth, function (req, res) {
     var user_to_add = req.body.useradd.toLowerCase();
     
     try {
-        check(groupname).len(8,49);
-        check(user_to_add).len(4,16).isAlphanumeric();
+        check(groupname, "groupname");
+        check(user_to_add, "username");
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -282,8 +282,8 @@ app.post('/login', function(req, res) {
     var pass = req.body.password;
 
     try {
-        check(username).len(4,256);
-        check(pass).notNull();
+        check(username, "username");
+        check(pass, "password");
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -331,8 +331,8 @@ app.post('/addtransaction', auth.checkAuth, function(req, res) {
     var group  = req.body.group;
     
     try {
-        check(username2).len(4,16).isAlphanumeric();
-        check(amount).isInt();
+        check(username2, "username");
+        check(amount, "value");
         if (details) {
             check(details).len(1,250);
         }
@@ -413,7 +413,7 @@ app.post('/transactioninfo', auth.checkAuth, function(req, res) {
     var transaction = req.body.transaction;
 
     try {
-        check(transaction).notNull();
+        check(transaction, "transaction");
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
@@ -440,7 +440,7 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
     var transaction = req.body.transaction;
 
     try {
-        check(transaction).notNull();
+        check(transaction, "transaction");
     } catch (e) {
         res.send({error: e.message, success: false});
         return;
