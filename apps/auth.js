@@ -1,5 +1,5 @@
 var crypto = require('crypto');
-var db = require('./db');
+var db = require('../db');
 
 function is_logged_in(req) {
     if (req.session.user_id) {

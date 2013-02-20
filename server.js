@@ -1,10 +1,10 @@
 var express = require('express');
 var connect = require('connect');
-var check = require('./validate').check;//require('validator').check;
-//var sanitize = require('validator').sanitize;
+var check = require('./validate').check;
 
-var auth = require('./auth');
+var auth = require('./apps/auth');
 var db = require('./db');
+var utils = require('./utils');
 
 var userdb = db.users;
 var transactiondb = db.transactions;
@@ -32,31 +32,11 @@ app.configure(function() {
     app.use(express.limit('5mb')); //Limiting max form size for photo uploads
 });
 
-//Takes a couchDB doc and removes the private couchdb info from it
-// The doc itself has private couchDB stuff that Idk if we want to expose...
-function cleanDoc(doc) {
-    doc._rev = undefined;
-    doc._id = undefined;
-}
+// Install app routes
+var users = require('./apps/users');
+users.install_routes(app);
 
-app.get('/user/:username', auth.checkAuth, function(req, res) {
-    var username = req.params.username;
-    // If we get a request for "me", then send back the logged in users information
-    if (username === 'me') {
-        username = req.user.username;
-    }
-    if (req.user.username !== username) {
-        res.send({error: 'Other profile viewing not implemented yet', success: false});
-    }
-    personaldb.get(username, function(err, doc) {
-        if (err) {
-            res.send({error: err, success: false});
-        } else {
-            cleanDoc(doc);
-            res.send({user: doc, success: true});
-        }
-    });
-});
+
 
 app.get('/group/:name', auth.checkAuth, function(req, res) {
     var name = req.params.name;
@@ -75,173 +55,19 @@ app.get('/group/:name', auth.checkAuth, function(req, res) {
             if (err) {
                 res.send({error: err, success: false});
             } else {
-                cleanDoc(doc);
+                utils.cleanDoc(doc);
                 res.send({group: doc, success: true});
             }
         });
     });
 });
 
-app.post('/makeaccount', function(req, res) {
-    var username = req.body.username.toLowerCase();
-    var email = req.body.email.toLowerCase();
-    var pass = req.body.password;
 
-    try {
-        check(username, 'username');
-        check(email, 'email');
-    } catch (e) {
-        res.send({error: e.message, success: false});
-        return;
-    }
-    
-    userdb.head(username, function(err, body) {
-        if (!err) {
-            res.send({error: 'Username is already in use', success: false});
-        } else {
-            var salt = auth.generateSalt(128);
-            auth.hash_password(pass, salt, function(hashed_pass) {
-                //create the account
-                var newUser = {
-                    username: username,
-                    email: email,
-                    password: hashed_pass,
-                    salt: salt,
-                    reputation: 0
-                };
-                userdb.insert(newUser, username, function(err, body) {
-                    if (!err) {
-                        console.log('Made new user='+username);
-                        personal_object = {
-                            username: username,
-                            email: email
-                        }
-                        makeBasicPermissions(username, personal_object, 
-                            res, makeBasicProfile);
-                    } else {
-                        res.send({error: 'Unable to make account at this time', 
-                            success: false});
-                    }
-                });
-            });
-        }
-    });
-});
-
-function makeBasicPermissions(username, personal_object, res, callback) {
-    object = {
-        global: {
-            firstname: true,
-            lastname: false,
-            email: false,
-            username: true,
-            reputation: true
-        },
-        partners: {
-            firstname: true,
-            lastname: true,
-            email: true,
-            username: true,
-            reputation: true
-        }
-    };
-    privacydb.insert(object, username, function(err, body) {
-        if (!err) {
-            callback(username, personal_object, res);
-        } else {
-            res.send({error: err, success: false});
-        }
-    });
-}
-
-function makeBasicProfile(username, object, res) {
-    personaldb.insert(object, username, function(err, body) {
-        if (!err) {
-            res.send({success: true});
-        } else {
-            res.send({error: err, success: false});
-        }
-    });
-}
 
 app.post('/updatepermissions', auth.checkAuth, function(req, res) {
     res.send("NOT IMPLEMENTED"); //TODO: Implement this
 });
 
-app.post('/updateprofile', auth.checkAuth, function(req, res) {
-    var username = req.user.username;
-    var firstname = req.body.firstname;
-    var lastname = req.body.lastname;
-    var email = req.body.email;
-
-    var allNull = true
-    if (firstname) {
-        allNull = false
-        try {
-            check(firstname, "name");
-        } catch (e) {
-            res.send({error: e, success: false});
-            return;
-        }
-    }
-    if (lastname) {
-        allNull = false
-        try {
-            check(lastname, "name");
-        } catch (e) {
-            res.send({error: e, success: false});
-            return;
-        }
-    }
-    if (email) {
-        allNull = false
-        try {
-            check(email, "email");
-        } catch (e) {
-            res.send({error: e, success: false});
-            return;
-        }
-    }
-    if (allNull) {
-        res.send({error: "Nothing to update", success: false});
-        return;
-    }
-    personaldb.get(username, function(err, body) {
-        if (err) {
-            object = {
-                username: username,
-                firstname: firstname,
-                lastname: lastname,
-                email: email
-            };
-            personaldb.insert(object, username, function(err, body) {
-                if (err) {
-                    res.send({error: err, success: false});
-                } else {
-                    res.send({success: true});
-                }
-            });
-        } else {
-            if (firstname) {
-                body.firstname = firstname;
-            }
-            if (lastname) {
-                body.lastname = lastname;
-            }
-            if (email) {
-                body.email = email;
-            }
-            personaldb.insert(body, username, function(err, body) {
-                if (err) {
-                    res.send({error: err, success: false});
-                } else {
-                    res.send({success: true});
-                }
-            });
-        }
-    });
-
-});
 
 // Creates a group
 app.post('/makegroup', auth.checkAuth, function(req, res) {
@@ -483,7 +309,7 @@ app.post('/transactioninfo', auth.checkAuth, function(req, res) {
                 return;
             }
             console.log("Retrieved transaction data for transaction="+transaction);
-            cleanDoc(doc);
+            utils.cleanDoc(doc);
             res.send({transaction: doc, success: true});
         } else {
             res.send({error: 'Unable to find transaction', success: false});
@@ -525,25 +351,26 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
                         !body.direction && username === body.sender) {
                         numToUpdateTo = 2;
                     }
-                    break;
+                break;
                 case 2:
                     if (username === body.sender) {
                         numToUpdateTo = 3;
                     } else if (username === body.receiver) {
                         numToUpdateTo = 4;
                     }
-                    break;
+                break;
                 case 3:
                     if (username === body.receiver) {
                         numToUpdateTo = 5;
                     }
-                    break;
+                break;
                 case 4:
                     if (username === body.sender) {
                         numToUpdateTo = 5;
                     }
+                break;
                 default:
-                    break;
+                break;
             }
             if (numToUpdateTo == 5) {
                 //TODO increment reputation and stuff
@@ -569,13 +396,6 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
     });
 });
 
-app.post('/uploadphoto', auth.checkAuth, function(req, res) {
-  res.send({success: true});
-  console.log('uploaded ' + req.files.image.name);
-  console.log(req.files.image.size / 1024 | 0);
-  console.log(req.files.image.path);
-  console.log(req.body.title);
-});
 
 app.get('/group/:name/members', auth.checkAuth, function(req, res) {
     var name = req.params.name;
@@ -623,7 +443,7 @@ app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
         if (!err) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
-                cleanDoc(trans);
+                utils.cleanDoc(trans);
                 return trans;
             });
             res.send({transactions: transactions, success: true});
@@ -641,7 +461,7 @@ app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
         if (!err) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
-                cleanDoc(trans);
+                utils.cleanDoc(trans);
                 return trans;
             });
             res.send({transactions: transactions, success: true});
@@ -658,7 +478,7 @@ app.get('/user/:groupname/grouptransactions', auth.checkAuth, function(req, res)
         if (!err) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
-                cleanDoc(trans);
+                utils.cleanDoc(trans);
                 return trans;
             });
             res.send({transactions: transactions, success: true});
