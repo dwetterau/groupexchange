@@ -14,20 +14,32 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         }
     });
 
+
     var MainView = Backbone.View.extend({
         initialize: function() {
             this.sidebar_view = new SidebarView();
         },
 
+        // TODO: This is aweful
         template: "<div id='header'><%= header_content %></div>" +
             "<div class='container' id='main_content'></div>",
-        header_content: '',
+        header_content: '<a id="logout"> Logout </a>',
+
+        events: {
+            'click #logout' : 'logout'
+        },
         
         render: function() {
             this.$el.html(_.template(this.template, {'header_content' : this.header_content}));
             this.$el.append(this.sidebar_view.el);
             this.sidebar_view.render();
             return this;
+        },
+
+        logout: function() {
+            $.post('/logout', _.bind(function(data) {
+                location.reload();
+            }, this));
         },
 
         show: function() {

@@ -44,7 +44,7 @@ exports.install_routes = function(app) {
         });
     });
 
-    app.get('/logout', auth.checkAuth, function(req, res) {
+    app.post('/logout', auth.checkAuth, function(req, res) {
         delete req.session.user_id;
         res.send({success: true});
     });
