@@ -74,7 +74,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         fields: [
             {
                 name: 'Email',
-                type: 'text',
+                type: 'email',
                 required: 'required',
                 css_class: 'input-block-level email_field'
             },
