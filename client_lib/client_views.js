@@ -31,7 +31,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         },
 
         show: function() {
-            if (!logged_in_user) {
+            if (!logged_in_user || logged_in_user.get('failed')) {
                 logged_in_user = new client_models.User({username: 'me'});
                 logged_in_user.fetch({
                     success: _.bind(function() {
@@ -61,10 +61,10 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         error: '',
         fields: [
             {
-                name: 'Username',
+                name: 'Email',
                 type: 'text',
                 required: 'required',
-                css_class: 'input-block-level username_field'
+                css_class: 'input-block-level email_field'
             },
             {
                 name: 'Password',
@@ -104,7 +104,7 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
 
         sendLogin: function() {
             $.post('/login',
-                   {username: $('.username_field').val(), password: $('.password_field').val()},
+                   {email: $('.email_field').val(), password: $('.password_field').val()},
                    _.bind(function (response) {
                        if (response.logged_in) {
                            var username = response.username;
@@ -138,10 +138,10 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         error: '',
         fields: [
             {
-                name: 'Username',
+                name: 'Email',
                 type: 'text',
-                required: 'required',
-                css_class: 'input-block-level username_field'
+                required: 'email',
+                css_class: 'input-block-level email_field'
             },
             {
                 name: 'First Name',
@@ -154,12 +154,6 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
                 type: 'text',
                 required: 'required',
                 css_class: 'input-small lastname_field'
-            },
-            {
-                name: 'Email',
-                type: 'text',
-                required: 'email',
-                css_class: 'input-block-level email_field'
             },
             {
                 name: 'Password',
@@ -214,25 +208,23 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
             if (this.checkSame() !== true) {
                 return;
             }
-            var username = this.$('.username_field').val();
             var password = this.$('.password_field').val();
             var first_name = this.$('.firstname_field').val();
             var last_name = this.$('.lastname_field').val();
             var email = this.$('.email_field').val();
-            $.post('/makeaccount',
-                   {username: username,
-                    email: email,
-                    password: password,
-                    firstname: first_name,
-                    lastname: last_name}).done(_.bind(function(response) {
-                        if (response.success) {
-                            logged_in_user = new client_models.User(response.user);
-                            app_events.trigger("app:logged-in");
-                        } else {
-                            this.error = response.result;
-                            this.render();
-                        }
-                    }, this));
+            $.post('/makeaccount', {
+                email: email,
+                password: password,
+                firstname: first_name,
+                lastname: last_name}).done(_.bind(function(response) {
+                    if (response.success) {
+                        logged_in_user = new client_models.User(response.user);
+                        app_events.trigger("app:logged-in");
+                    } else {
+                        this.error = response.result;
+                        this.render();
+                    }
+                }, this));
         },
 
         checkSame: function() {

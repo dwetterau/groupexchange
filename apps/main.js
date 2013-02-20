@@ -31,7 +31,7 @@ exports.install_routes = function(app) {
                         response.error = 'Invalid username or password';
                     }
                     //if (remember me checked)
-                    req.session.maxAge = 604800; // one week
+                    // Set the expiration time on cookie
                     response.success = true;
                     res.send(response);
                 });
