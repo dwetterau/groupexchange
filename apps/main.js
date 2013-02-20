@@ -7,11 +7,11 @@ var auth = require('./auth');
 
 exports.install_routes = function(app) {
     app.post('/login', function(req, res) {
-        var username = req.body.username.toLowerCase();
+        var email = req.body.email.toLowerCase();
         var pass = req.body.password;
 
         try {
-            check(username, "username");
+            check(email, "email");
             check(pass, "password");
         } catch (e) {
             res.send({error: e.message, success: false});
@@ -19,14 +19,14 @@ exports.install_routes = function(app) {
         }
         
         var response = {logged_in: false};
-        db.users.get(username, function (err, body) {
+        db.users.get(email, function (err, body) {
             if (!err) {
                 //check the password
                 auth.hash_password(pass, body.salt, function(hashed_pass) {
                     if (body.password == hashed_pass) {
-                        req.session.user_id = username;
+                        req.session.user_id = email;
                         response.logged_in = true;
-                        response.username = username;
+                        response.username = body.username;
                     } else {
                         response.error = 'Invalid username or password';
                     }
@@ -37,7 +37,7 @@ exports.install_routes = function(app) {
                 });
             } else {
                 //Couldn't find it in database OR database is unavailable
-                response.error = 'Invalid username or password';
+                response.error = 'Invalid email or password';
                 response.success = false;
                 res.send(response);
             }

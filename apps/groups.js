@@ -109,7 +109,7 @@ exports.install_routes = function(app) {
                 return;
             }
             //Check to see if the user actually exists
-            db.users.head(user_to_add, function(err, body) {
+            db.personal.head(user_to_add, function(err, body) {
                 if (!err) {
                     addUserToGroup(user_to_add, groupname, res);
                 } else {
@@ -120,8 +120,8 @@ exports.install_routes = function(app) {
     });
 
 
-    app.get('/group/:name/members', auth.checkAuth, function(req, res) {
-        var name = req.params.name;
+    app.get('/group/:groupname/members', auth.checkAuth, function(req, res) {
+        var name = req.params.groupname;
         var username = req.user.username;
         db.groupmembers.view('members', 'members', {keys: [name]}, function(err, body) {
             if (err) {

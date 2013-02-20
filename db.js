@@ -5,8 +5,7 @@ var databases = ['users',
                  'groups', 
                  'sessions', 
                  'groupmembers', 
-                 'personal',
-                 'privacy'];
+                 'personal'];
 databases.forEach(function(database) {
     exports[database] = nano.use(database);
 });

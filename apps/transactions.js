@@ -26,20 +26,19 @@ exports.install_routes = function(app) {
         var details = req.body.details;
         var group  = req.body.group;
         
-        // TODO: This is broken
-        /*try {
+        try {
             check(username2, "username");
             check(amount, "value");
             if (details) {
-                check(details).len(1,250);
+                check(details, "longtext");
             }
             if (group) {
-                check(group).len(8,49);
+                check(group, "groupname");
             }
         } catch (e) {
             res.send({error: e, success: false});
             return;
-        }*/
+        }
         
         var sender = username1, receiver = username2;
         if (!direction) {
@@ -85,7 +84,7 @@ exports.install_routes = function(app) {
             });
         };
 
-        db.users.head(username2, function (err, body) {
+        db.personal.head(username2, function (err, body) {
             if (!err) {
                 numTransactions(makeTransaction);
             } else {
@@ -211,53 +210,53 @@ exports.install_routes = function(app) {
             res.send({error: "You can't see other members's transactions", success: false});
         }
         db.transactions.view('alltransactions', 'alltransactions', {keys: [username]}, 
-                           function(err, body) {
-                               if (!err) {
-                                   var transactions = body.rows.map(function(row) {   
-                                       var trans = row.value;
-                                       utils.cleanDoc(trans);
-                                       return trans;
-                                   });
-                                   res.send({transactions: transactions, success: true});
-                               } else {
-                                   res.send({error: err, success: false});
-                               }
-                           });
+          function(err, body) {
+              if (!err) {
+                  var transactions = body.rows.map(function(row) {   
+                      var trans = row.value;
+                      utils.cleanDoc(trans);
+                      return trans;
+                  });
+                  res.send({transactions: transactions, success: true});
+              } else {
+                  res.send({error: err, success: false});
+              }
+          });
     });
 
     app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
         var username_other = req.params.username;
         var username = req.user.username;
         db.transactions.view('usertransactions', 'usertransactions', {keys: [[username, username_other]]}, 
-                           function(err, body) {
-                               if (!err) {
-                                   var transactions = body.rows.map(function(row) {   
-                                       var trans = row.value;
-                                       utils.cleanDoc(trans);
-                                       return trans;
-                                   });
-                                   res.send({transactions: transactions, success: true});
-                               } else {
-                                   res.send({error: err, success: false});
-                               }
-                           });
+          function(err, body) {
+              if (!err) {
+                  var transactions = body.rows.map(function(row) {   
+                      var trans = row.value;
+                      utils.cleanDoc(trans);
+                      return trans;
+                  });
+                  res.send({transactions: transactions, success: true});
+              } else {
+                  res.send({error: err, success: false});
+              }
+          });
     });
 
     app.get('/group/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
         var groupname = req.params.groupname;
         db.transactions.view('grouptransactions', 'grouptransactions', 
-                           {keys: [[req.user.username, groupname]]}, function(err, body) {
-                               if (!err) {
-                                   var transactions = body.rows.map(function(row) {   
-                                       var trans = row.value;
-                                       utils.cleanDoc(trans);
-                                       return trans;
-                                   });
-                                   res.send({transactions: transactions, success: true});
-                               } else {
-                                   res.send({error: err, success: false});
-                               }
-                           });
+          {keys: [[req.user.username, groupname]]}, function(err, body) {
+              if (!err) {
+                  var transactions = body.rows.map(function(row) {   
+                      var trans = row.value;
+                      utils.cleanDoc(trans);
+                      return trans;
+                  });
+                  res.send({transactions: transactions, success: true});
+              } else {
+                  res.send({error: err, success: false});
+              }
+          });
     });
 };
 

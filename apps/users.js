@@ -4,21 +4,21 @@ var auth = require('./auth');
 var db = require('../db');
 var utils = require('../utils');
 var check = require('../validate').check;
+var nano = db.nano;
 
-//New stuff I'll have to move over ======================================
 // This is serialized for now.. I'll probably want to change that
 function getNewPID(callback) {
     db.users.get('c', function(err, body) {
         if (err) {
             //Start a new counter. This should only happen once
-            db.nano.get('users', function(err, body) {
+            nano.db.get('users', function(err, body) {
                 var num = body.doc_count;
                 if (err) {
-                    //TODO... um crap
+                    //Also should never happen
                 } else {
-                    userdb.insert({num: num}, 'c', function(err, body) {
+                    db.users.insert({num: num}, 'c', function(err, body) {
                         if (err) {
-                            //TODO... redo?
+                            //Should never happen
                         } else {
                             callback(num);
                         }
@@ -40,8 +40,8 @@ function getNewPID(callback) {
     });
 }
 
-function makeBasicPermissions(username, personal_object, res, callback) {
-    object = {
+function attachBasicPermissions(object) {
+    permissions = {
         global: {
             firstname: true,
             lastname: false,
@@ -57,17 +57,11 @@ function makeBasicPermissions(username, personal_object, res, callback) {
             reputation: true
         }
     };
-    db.privacy.insert(object, username, function(err, body) {
-        if (!err) {
-            callback(username, personal_object, res);
-        } else {
-            res.send({error: err, success: false});
-        }
-    });
+    object.permissions = permissions;
 }
 
-function makeBasicProfile(username, object, res) {
-    db.personal.insert(object, username, function(err, body) {
+function makeBasicProfile(object, res) {
+    db.personal.insert(object, object.username, function(err, body) {
         if (!err) {
             res.send({success: true});
         } else {
@@ -97,49 +91,51 @@ exports.install_routes = function(app) {
     });
 
     app.post('/makeaccount', function(req, res) {
-        var username = req.body.username.toLowerCase();
-        var email = req.body.email.toLowerCase();
-        var pass = req.body.password;
+        // Just btw, pid = profile id
+        createAccount = function(pid) { 
+           var email = req.body.email.toLowerCase();
+           var pass = req.body.password;
 
-        try {
-            check(username, 'username');
-            check(email, 'email');
-        } catch (e) {
-            res.send({error: e.message, success: false});
-            return;
-        }
-        
-        db.users.head(username, function(err, body) {
-            if (!err) {
-                res.send({error: 'Username is already in use', success: false});
-            } else {
-                var salt = auth.generateSalt(128);
-                auth.hash_password(pass, salt, function(hashed_pass) {
-                    //create the account
-                    var newUser = {
-                        username: username,
-                        email: email,
-                        password: hashed_pass,
-                        salt: salt,
-                        reputation: 0
-                    };
-                    db.users.insert(newUser, username, function(err, body) {
-                        if (!err) {
-                            console.log('Made new user='+username);
-                            personal_object = {
-                                username: username,
-                                email: email
-                            };
-                            makeBasicPermissions(username, personal_object, 
-                                                 res, makeBasicProfile);
-                        } else {
-                            res.send({error: 'Unable to make account at this time', 
-                                      success: false});
-                        }
-                    });
-                });
-            }
-        });
+           try {
+               check(pid, 'pid');
+               check(email, 'email');
+           } catch (e) {
+               res.send({error: e.message, success: false});
+               return;
+           }
+           
+           db.users.head(email, function(err, body) {
+               if (!err) {
+                   res.send({error: 'Email is already in use', success: false});
+               } else {
+                   var salt = auth.generateSalt(128);
+                   auth.hash_password(pass, salt, function(hashed_pass) {
+                       //create the account
+                       var newUser = {
+                           username: pid.toString(),
+                           email: email,
+                           password: hashed_pass,
+                           salt: salt,
+                           reputation: 0
+                       };
+                       db.users.insert(newUser, email, function(err, body) {
+                           if (!err) {
+                               personal_object = {
+                                   username: pid.toString(),
+                                   email: email
+                               };
+                               attachBasicPermissions(personal_object);
+                               makeBasicProfile(personal_object, res);
+                           } else {
+                               res.send({error: 'Unable to make account at this time', 
+                                         success: false});
+                           }
+                       });
+                   });
+               }
+           });
+        };
+        getNewPID(createAccount);
     });
 
 
@@ -224,9 +220,5 @@ exports.install_routes = function(app) {
         console.log(req.files.image.size / 1024 | 0);
         console.log(req.files.image.path);
         console.log(req.body.title);
-    });
-
-    app.post('/updatepermissions', auth.checkAuth, function(req, res) {
-        res.send("NOT IMPLEMENTED"); //TODO: Implement this
     });
 };
