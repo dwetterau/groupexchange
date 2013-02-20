@@ -36,128 +36,8 @@ app.configure(function() {
 var users = require('./apps/users');
 users.install_routes(app);
 
-
-
-app.get('/group/:name', auth.checkAuth, function(req, res) {
-    var name = req.params.name;
-    var username = req.user.username;
-    groupmembersdb.view('members', 'members', {keys: [name]}, function(err, body) {
-        if (err) {
-            res.send({error: err, success: false});
-            return;
-        }
-        var group_members = body.rows.map(function(row) { return row.value; });
-        if (group_members.indexOf(username) == -1) {
-            res.send({error: 'User not in group', success: false});
-            return;
-        }
-        groupdb.get(name, function(err, doc) {
-            if (err) {
-                res.send({error: err, success: false});
-            } else {
-                utils.cleanDoc(doc);
-                res.send({group: doc, success: true});
-            }
-        });
-    });
-});
-
-
-
-app.post('/updatepermissions', auth.checkAuth, function(req, res) {
-    res.send("NOT IMPLEMENTED"); //TODO: Implement this
-});
-
-
-// Creates a group
-app.post('/makegroup', auth.checkAuth, function(req, res) {
-    var username = req.user.username;
-    var groupname = req.body.groupname.toLowerCase();
-
-    try {
-        check(groupname, "groupname");
-    } catch (e) {
-        res.send({error: e.message, success: false});
-        return;
-    }
-
-    var group_name_combined = username + '-' + groupname; 
-    groupdb.head(group_name_combined, function(err, body) {
-        if (!err) {
-            res.send({error: 'Groupname is in use', success: false}); //Aka this user has already created a group with this name
-        } else {
-            var groupObject = {
-                name: group_name_combined,
-                display_name: groupname,
-                owner: username
-            };
-            groupdb.insert(groupObject, group_name_combined, function(err, body) {
-                if (!err) {
-                    console.log('Made new group='+group_name_combined);
-                    addUserToGroup(username, group_name_combined, res); 
-                } else {
-                    res.send({error: 'Unable to make group at this time', success: false});
-                }
-            });
-        }
-    });
-});
-
-// Adds a user to a group
-app.post('/addgroup', auth.checkAuth, function (req, res) {
-    var username = req.user.username;
-    var groupname = req.body.groupname.toLowerCase();
-    var user_to_add = req.body.useradd.toLowerCase();
-    
-    try {
-        check(groupname, "groupname");
-        check(user_to_add, "username");
-    } catch (e) {
-        res.send({error: e.message, success: false});
-        return;
-    }
-   
-    groupmembersdb.view('members', 'members', {keys: [groupname]}, function(err, body) {
-        if (err) {
-            res.send({error: err, success: false});
-            return;
-        }
-        var group_members = body.rows.map(function(row) { return row.value; });
-        if (group_members.indexOf(username) == -1) {
-            res.send({error: 'User not in group', success: false});
-            return;
-        }
-        if (group_members.indexOf(user_to_add) != -1) {
-            res.send({error: 'User already in group', success: false});
-            return;
-        }
-        //Check to see if the user actually exists
-        userdb.head(user_to_add, function(err, body) {
-            if (!err) {
-                addUserToGroup(user_to_add, groupname, res);
-            } else {
-                res.send({error: 'Could not find user', success: false});
-            }
-        });
-    });
-});
-
-function addUserToGroup(username, groupname, res) {
-    link_object = {
-      user: username,
-      group: groupname
-    };
-    groupmembersdb.insert(link_object, username+groupname, function(err, body) {
-        if (err) {
-            res.send({error: err, success: false});
-            console.log("Failed to add user '" + username + "' to group '" +
-                        groupname + "'");
-        } else {
-            res.send({success: true});
-            console.log("Added user '" + username + "' to group '" + groupname + "'");
-        }
-    });
-}
+var groups = require('./apps/groups');
+groups.install_routes(app);
 
 app.post('/login', function(req, res) {
     var username = req.body.username.toLowerCase();
@@ -397,40 +277,6 @@ app.post('/advancetransaction', auth.checkAuth, function(req, res) {
 });
 
 
-app.get('/group/:name/members', auth.checkAuth, function(req, res) {
-    var name = req.params.name;
-    var username = req.user.username;
-    groupmembersdb.view('members', 'members', {keys: [name]}, function(err, body) {
-        if (err) {
-            res.send({error: err, success: false});
-            return;
-        }
-        var group_members = body.rows.map(function(row) { return row.value; });
-        if (group_members.indexOf(username) == -1) {
-            res.send({error: 'User not in group', success: false});
-            return;
-        } else {
-            res.send({members: group_members, success: true});
-        }
-    });
-});
-
-app.get('/user/:username/groups', auth.checkAuth, function(req, res) {
-    var name = req.params.username;
-    var username = req.user.username;
-    if (username != name) {
-        res.send({error: "You cannot view another user's groups yet", success: false});
-        return;
-    }
-    groupmembersdb.view('groups', 'groups', {keys: [name]}, function(err, body) {
-        if (err) {
-            res.send({error: err, success: false});
-            return;
-        }
-        var groups = body.rows.map(function(row) { return row.value; });
-        res.send({groups: groups, success: true});
-    });
-});
 
 
 app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
@@ -471,7 +317,7 @@ app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
     });
 });
 
-app.get('/user/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
+app.get('/group/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
     var groupname = req.params.groupname;
     transactiondb.view('grouptransactions', 'grouptransactions', 
         {keys: [[req.user.username, groupname]]}, function(err, body) {

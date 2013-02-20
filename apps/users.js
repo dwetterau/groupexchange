@@ -191,4 +191,8 @@ exports.install_routes = function(app) {
         console.log(req.files.image.path);
         console.log(req.body.title);
     });
-}
+
+    app.post('/updatepermissions', auth.checkAuth, function(req, res) {
+        res.send("NOT IMPLEMENTED"); //TODO: Implement this
+    });
+};
