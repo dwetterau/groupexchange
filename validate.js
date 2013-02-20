@@ -3,7 +3,7 @@ var checker = require("./validator-min").check;
 function check(input, type) {
     switch(type){
         case "username":
-            checker(input).len(4,32);            
+            checker(input).isInt();            
             break;
         case "name":
             checker(input).len(1,64);

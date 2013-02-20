@@ -5,6 +5,40 @@ var db = require('../db');
 var utils = require('../utils');
 var check = require('../validate').check;
 
+//New stuff I'll have to move over ======================================
+// This is serialized for now.. I'll probably want to change that
+function getNewPID(callback) {
+    db.users.get('c', function(err, body) {
+        if (err) {
+            //Start a new counter. This should only happen once
+            db.nano.get('users', function(err, body) {
+                var num = body.doc_count;
+                if (err) {
+                    //TODO... um crap
+                } else {
+                    userdb.insert({num: num}, 'c', function(err, body) {
+                        if (err) {
+                            //TODO... redo?
+                        } else {
+                            callback(num);
+                        }
+                    });
+                }
+            });
+        } else {
+            body.num += 1;
+            var num = body.num;
+            db.users.insert(body, 'c', function(err, body) {
+                if (err) {
+                    //try again
+                    getNewPID(callback);
+                } else {
+                    callback(num);
+                }
+            });
+        }
+    });
+}
 
 function makeBasicPermissions(username, personal_object, res, callback) {
     object = {
