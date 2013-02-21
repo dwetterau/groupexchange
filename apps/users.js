@@ -77,13 +77,18 @@ exports.install_routes = function(app) {
         if (username === 'me') {
             username = req.user.username;
         }
-        if (req.user.username !== username) {
-            res.send({error: 'Other profile viewing not implemented yet', success: false});
-        }
         db.personal.get(username, function(err, doc) {
             if (err) {
                 res.send({error: err, success: false});
             } else {
+                if (req.user.username !== username) {
+                    //TODO add check to see if they are "partners"
+                    for (var attr in doc.permissions["global"]) {
+                        if (!doc.permissions["global"][attr]) {
+                            doc[attr] = undefined;
+                        }
+                    }
+                }
                 utils.cleanDoc(doc);
                 res.send({user: doc, success: true});
             }
