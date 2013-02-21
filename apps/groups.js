@@ -3,6 +3,7 @@
 var db = require('../db');
 var auth = require('./auth');
 var check = require('../validate').check;
+var utils = require('../utils');
 
 function addUserToGroup(username, groupname, res) {
     link_object = {
