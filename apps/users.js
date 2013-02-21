@@ -4,6 +4,7 @@ var auth = require('./auth');
 var db = require('../db');
 var utils = require('../utils');
 var check = require('../validate').check;
+var _ = require('underscore')._;
 var nano = db.nano;
 
 // This is serialized for now.. I'll probably want to change that
@@ -151,62 +152,30 @@ exports.install_routes = function(app) {
         var email = req.body.email;
 
         var allNull = true;
-        if (firstname) {
-            allNull = false;
-            try {
-                check(firstname, "name");
-            } catch (e) {
-                res.send({error: e, success: false});
-                return;
-            }
-        }
-        if (lastname) {
-            allNull = false;
-            try {
-                check(lastname, "name");
-            } catch (e) {
-                res.send({error: e, success: false});
-                return;
-            }
-        }
-        if (email) {
-            allNull = false;
-            try {
-                check(email, "email");
-            } catch (e) {
-                res.send({error: e, success: false});
-                return;
+        var update_type_map = {"firstname": "name", "lastname": "name"};
+        //TODO allow updating of username/email...
+        var updates = {};
+        for (var attr in req.body) {
+            if (attr in update_type_map && req.body[attr]) {
+                allNull = false;
+                try {
+                    check(req.body[attr], update_type_map[attr]);
+                    updates[attr] = req.body[attr];
+                } catch (e) {
+                    res.send({error: e, success: false});
+                    return;
+                }
             }
         }
         if (allNull) {
-            res.send({error: "Nothing to update", success: false});
+            res.send({error: "Nothing to update", success: true});
             return;
         }
         db.personal.get(username, function(err, body) {
             if (err) {
-                object = {
-                    username: username,
-                    firstname: firstname,
-                    lastname: lastname,
-                    email: email
-                };
-                db.personal.insert(object, username, function(err, body) {
-                    if (err) {
-                        res.send({error: err, success: false});
-                    } else {
-                        res.send({success: true});
-                    }
-                });
+                res.send({error: err, success: false});
             } else {
-                if (firstname) {
-                    body.firstname = firstname;
-                }
-                if (lastname) {
-                    body.lastname = lastname;
-                }
-                if (email) {
-                    body.email = email;
-                }
+                _.extend(body, updates);
                 db.personal.insert(body, username, function(err, body) {
                     if (err) {
                         res.send({error: err, success: false});
