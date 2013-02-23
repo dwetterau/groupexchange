@@ -6,6 +6,7 @@ var utils = require('../utils');
 var check = require('../validate').check;
 var _ = require('underscore')._;
 var nano = db.nano;
+var models = require('./models');
 
 // This is serialized for now.. I'll probably want to change that
 function getNewPID(callback) {
@@ -41,36 +42,6 @@ function getNewPID(callback) {
     });
 }
 
-function attachBasicPermissions(object) {
-    permissions = {
-        global: {
-            firstname: true,
-            lastname: false,
-            email: false,
-            username: true,
-            reputation: true
-        },
-        partners: {
-            firstname: true,
-            lastname: true,
-            email: true,
-            username: true,
-            reputation: true
-        }
-    };
-    object.permissions = permissions;
-}
-
-function makeBasicProfile(object, res) {
-    db.personal.insert(object, object.username, function(err, body) {
-        if (!err) {
-            res.send({success: true});
-        } else {
-            res.send({error: err, success: false});
-        }
-    });
-}
-
 exports.install_routes = function(app) {
     app.get('/user/:username', auth.checkAuth, function(req, res) {
         var username = req.params.username;
@@ -78,21 +49,21 @@ exports.install_routes = function(app) {
         if (username === 'me') {
             username = req.user.username;
         }
-        db.personal.get(username, function(err, doc) {
-            if (err) {
-                res.send({error: err, success: false});
-            } else {
-                if (req.user.username !== username) {
-                    //TODO add check to see if they are "partners"
-                    for (var attr in doc.permissions["global"]) {
-                        if (!doc.permissions["global"][attr]) {
-                            doc[attr] = undefined;
-                        }
+        var personal = new models.Personal(username);
+        personal.load(function(doc) {
+            if (req.user.username !== username) {
+                //TODO add check to see if they are "partners"
+                for (var attr in personal.get('permissions').global) {
+                    if (personal.get('permissions').global[attr]) {
+                        doc[attr] = undefined;
                     }
                 }
-                utils.cleanDoc(doc);
-                res.send({user: doc, success: true});
             }
+            var cleaned = personal.toJSON();
+            utils.cleanDoc(cleaned);
+            res.send({user: cleaned, success: true});
+        }, function(err) {
+            res.send({error: err, success: false});
         });
     });
 
@@ -117,25 +88,29 @@ exports.install_routes = function(app) {
                    var salt = auth.generateSalt(128);
                    auth.hash_password(pass, salt, function(hashed_pass) {
                        //create the account
-                       var newUser = {
+                       var new_user = new models.User(email);
+                       new_user.update({
                            username: pid.toString(),
                            email: email,
                            password: hashed_pass,
                            salt: salt,
                            reputation: 0
-                       };
-                       db.users.insert(newUser, email, function(err, body) {
-                           if (!err) {
-                               personal_object = {
-                                   username: pid.toString(),
-                                   email: email
-                               };
-                               attachBasicPermissions(personal_object);
-                               makeBasicProfile(personal_object, res);
-                           } else {
-                               res.send({error: 'Unable to make account at this time', 
-                                         success: false});
-                           }
+                       });
+                       new_user.save(function() {
+                           var personal = new models.Personal(pid.toString());
+                           personal.email = email;
+                           personal_object = {
+                               username: pid.toString(),
+                               email: email
+                           };
+                           personal.save(function() {
+                               res.send({success: true});
+                           }, function(err) {
+                               res.send({error: err, success: false});
+                           });
+                       }, function(err) {
+                           res.send({error: 'Unable to make account at this time', 
+                                     success: false});
                        });
                    });
                }
@@ -171,19 +146,16 @@ exports.install_routes = function(app) {
             res.send({error: "Nothing to update", success: true});
             return;
         }
-        db.personal.get(username, function(err, body) {
-            if (err) {
+        var personal = new models.Personal(username);
+        personal.load(function() {
+            personal.update(updates);
+            personal.save(function() {
+                res.send({success: true});
+            }, function(err) {
                 res.send({error: err, success: false});
-            } else {
-                _.extend(body, updates);
-                db.personal.insert(body, username, function(err, body) {
-                    if (err) {
-                        res.send({error: err, success: false});
-                    } else {
-                        res.send({success: true});
-                    }
-                });
-            }
+            });
+        }, function(err) {
+            res.send({error: err, success: false});
         });
 
     });
