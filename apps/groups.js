@@ -4,21 +4,23 @@ var db = require('../db');
 var auth = require('./auth');
 var check = require('../validate').check;
 var utils = require('../utils');
+var models = require('./models');
 
 function addUserToGroup(username, groupname, res) {
     link_object = {
         user: username,
         group: groupname
     };
-    db.groupmembers.insert(link_object, username+groupname, function(err, body) {
-        if (err) {
-            res.send({error: err, success: false});
-            console.log("Failed to add user '" + username + "' to group '" +
-                        groupname + "'");
-        } else {
-            res.send({success: true});
-            console.log("Added user '" + username + "' to group '" + groupname + "'");
-        }
+    id = username+groupname;
+    var groupmember_model = new models.GroupMember(id);
+    groupmember_model.update(link_object);
+    groupmember_model.save(function(body) {
+        res.send({success: true});
+        console.log("Added user '" + username + "' to group '" + groupname + "'");
+    }, function(err) {
+        res.send({error: err, success: false});
+        console.log("Failed to add user '" + username + "' to group '" +
+                    groupname + "'");
     });
 }
 
@@ -60,24 +62,22 @@ exports.install_routes = function(app) {
         }
 
         var group_name_combined = username + '-' + groupname; 
-        db.groups.head(group_name_combined, function(err, body) {
-            if (!err) {
-                res.send({error: 'Groupname is in use', success: false}); //Aka this user has already created a group with this name
-            } else {
-                var groupObject = {
-                    name: group_name_combined,
-                    display_name: groupname,
-                    owner: username
-                };
-                db.groups.insert(groupObject, group_name_combined, function(err, body) {
-                    if (!err) {
-                        console.log('Made new group='+group_name_combined);
-                        addUserToGroup(username, group_name_combined, res); 
-                    } else {
-                        res.send({error: 'Unable to make group at this time', success: false});
-                    }
-                });
-            }
+        var group_model = new models.Group(group_name_combined);
+        
+        group_model.exists(function() { 
+            res.send({error: 'Groupname is in use', success: false}); 
+        }, function(err) {
+            group_model.update({
+                name: group_name_combined,
+                display_name: groupname,
+                owner: username
+            });
+            group_model.save(function(body) {
+                console.log('Made new group='+group_name_combined);
+                addUserToGroup(username, group_name_combined, res); 
+            }, function(err) {
+                res.send({error: 'Unable to make group at this time', success: false});
+            });
         });
     });
 
@@ -109,13 +109,11 @@ exports.install_routes = function(app) {
                 res.send({error: 'User already in group', success: false});
                 return;
             }
-            //Check to see if the user actually exists
-            db.personal.head(user_to_add, function(err, body) {
-                if (!err) {
-                    addUserToGroup(user_to_add, groupname, res);
-                } else {
-                    res.send({error: 'Could not find user', success: false});
-                }
+            user_to_add_model = new models.Personal(user_to_add);
+            user_to_add_model.exists(function(body) {
+                addUserToGroup(user_to_add, groupname, res);
+            }, function(err) {
+                res.send({error: 'Could not find user', success: false});
             });
         });
     });

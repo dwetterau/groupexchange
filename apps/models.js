@@ -25,6 +25,18 @@ var ModelBase = {
             }
         }, this));
     },
+    // Function that checks to see if the object exists in the db or not based 
+    // off id. This will prevent a full load if that isn't needed.
+    exists: function(callback, err_cb) {
+        this.db.head(this.get_id(), _.bind(function(err, doc) {
+            if (err) {
+                err_cb(err);
+            } else {
+                callback();
+            }
+        }, this));
+
+    },
     // Function that can be overridden to use any attribute as an id
     get_id: function() {
         if (this.attributes && this.attributes.id) {
@@ -108,7 +120,32 @@ var Personal = function(id) {
 };
 Personal.prototype = _.clone(ModelBase);
 
+var Transaction = function(id) {
+    this.attributes = {};
+    this.db = db.transactions
+    this.set('id', id);
+}
+Transaction.prototype = _.clone(ModelBase);
+
+var GroupMember = function(id) {
+    this.attributes = {};
+    this.db = db.groupmembers;
+    this.set('id', id);
+}
+GroupMember.prototype = _.clone(ModelBase);
+
+var Group = function(id) {
+    this.attributes = {};
+    this.db = db.groups;
+    this.set('name', id);
+    this.get_id = function() {
+        return this.get('name');
+    };
+}
+Group.prototype = _.clone(ModelBase);
 
 exports.User = User;
 exports.Personal = Personal;
-
+exports.Transaction = Transaction;
+exports.GroupMember = GroupMember;
+exports.Group = Group;
