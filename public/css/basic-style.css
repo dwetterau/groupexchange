@@ -19,3 +19,17 @@ body {
     width: auto;
     margin: auto;
 }
+
+.sidebar-pane {
+    min-height: 100%;
+    background-color: #fff;
+}
+
+.main-pane {
+    min-height: 100%;
+    background-color: #fff;
+}
+
+.main-view {
+    min-height: 100%;
+}

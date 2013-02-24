@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Jasmine Spec Runner</title>
+  <link rel="stylesheet" type="text/css" href="lib/jasmine-1.3.1/jasmine.css">
+  <script src="../require.js"></script>
+  <script type="text/javascript">
+    require.config({
+        baseUrl: "../",
+        paths: {
+            jasmine: 'tests/lib/jasmine-1.3.1/jasmine',
+            'jasmine-html': 'tests/lib/jasmine-1.3.1/jasmine-html',
+        },
+        shim: {
+            jasmine: {
+                exports: 'jasmine'
+            },
+            'jasmine-html': {
+                deps: ['jasmine'],
+                exports: 'jasmine'
+            }
+        }
+    });
+  </script>
+  <script type="text/javascript">
+    require(['jasmine-html'], function(jasmine){
+    
+        var jasmineEnv = jasmine.getEnv();
+        jasmineEnv.updateInterval = 1000;
+
+        var htmlReporter = new jasmine.HtmlReporter();
+
+        jasmineEnv.addReporter(htmlReporter);
+
+        jasmineEnv.specFilter = function(spec) {
+            return htmlReporter.specFilter(spec);
+        };
+
+        var specs = [];
+
+        // Add tests here
+        specs.push('tests');
+
+        require(specs, function(){
+            jasmineEnv.execute();
+        });
+    
+    });
+  </script>
+</head>
+<body>
+  <div id="sandbox" style="overflow: hidden; height: 1px;"></div>
+</body>
+</html>

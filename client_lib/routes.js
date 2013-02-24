@@ -31,6 +31,8 @@ define('routes', ['backbone', 'underscore', 'client_views'], function(Backbone, 
     client_views.app_events.on("app:logged-in", function() {
         router.navigate('main', true);
     });
-    Backbone.history.start();
+    if (!window.testing) {
+        Backbone.history.start();
+    }
     return {router: router};
 });

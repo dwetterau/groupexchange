@@ -3,26 +3,47 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
     var app_events = _.clone(Backbone.Events);
 
     var SidebarView = Backbone.View.extend({
-        tagName: "ul",
+        tagName: "div",
+        attributes: {
+            'class': 'span2 sidebar-pane'
+        },
         entryTemplate: "<li><a href=<%= entry_url %>><%= entry_title %></a></li>",
         groups: [],
         render: function() {
             this.$el.empty();
+            var groups_list = $('<ul>');
             this.groups.each(function(group) {
-                this.$el.append(_.template(this.entryTemplate, { entry_url: group.url(), entry_title: group.get('name')}));
+                groups_list.append(_.template(this.entryTemplate, { entry_url: group.url(), entry_title: group.get('name')}));
             }, this);
+            this.$el.append(groups_list);
         }
     });
 
-
+    var GroupView = Backbone.View.extend({
+        tagName: 'div',
+        attributes: {
+            'class' : 'span8 main-pane'
+        },
+        render: function() {
+            this.$el.empty();
+            this.$el.html('Hello there!');
+            // Do stuff
+        }
+    });
+            
     var MainView = Backbone.View.extend({
         initialize: function() {
             this.sidebar_view = new SidebarView();
+            this.group_view = new GroupView();
         },
 
-        // TODO: This is aweful
-        template: "<div id='header'><%= header_content %></div>" +
-            "<div class='container' id='main_content'></div>",
+        tagName: "div",
+        attributes: {
+            'class': 'container-fluid main-view'
+        },
+
+        // TODO: This is awful
+        template: "<div id='header'><%= header_content %></div>",
         header_content: '<a id="logout"> Logout </a>',
 
         events: {
@@ -32,7 +53,9 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         render: function() {
             this.$el.html(_.template(this.template, {'header_content' : this.header_content}));
             this.$el.append(this.sidebar_view.el);
+            this.$el.append(this.group_view.el);
             this.sidebar_view.render();
+            this.group_view.render();
             return this;
         },
 
