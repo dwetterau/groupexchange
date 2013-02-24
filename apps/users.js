@@ -55,7 +55,7 @@ exports.install_routes = function(app) {
                 //TODO add check to see if they are "partners"
                 for (var attr in personal.get('permissions').global) {
                     if (!personal.get('permissions').global[attr]) {
-                        personal.attributes[attr] = undefined;
+                        personal.set(attr, undefined);
                     }
                 }
             }
