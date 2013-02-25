@@ -26,26 +26,23 @@ function addUserToGroup(username, groupname, res) {
 
 exports.install_routes = function(app) {
     app.get('/group/:name', auth.checkAuth, function(req, res) {
-        var name = req.params.name;
+        var groupname = req.params.name;
         var username = req.user.username;
-        db.groupmembers.view('members', 'members', {keys: [name]}, function(err, body) {
-            if (err) {
-                res.send({error: err, success: false});
-                return;
-            }
+        var group = new models.Group(groupname);
+        group.get_members(function(body) {
             var group_members = body.rows.map(function(row) { return row.value; });
             if (group_members.indexOf(username) == -1) {
                 res.send({error: 'User not in group', success: false});
                 return;
             }
-            db.groups.get(name, function(err, doc) {
-                if (err) {
-                    res.send({error: err, success: false});
-                } else {
-                    utils.cleanDoc(doc);
-                    res.send({group: doc, success: true});
-                }
+            group.load(function(doc) {
+                utils.cleanDoc(doc);
+                res.send({group: doc, success: true});
+            }, function(err) {
+                res.send({error: err, success: false});
             });
+        }, function(err) {
+            res.send({error: err, success: false});
         });
     });
 
@@ -94,12 +91,8 @@ exports.install_routes = function(app) {
             res.send({error: e.message, success: false});
             return;
         }
-        
-        db.groupmembers.view('members', 'members', {keys: [groupname]}, function(err, body) {
-            if (err) {
-                res.send({error: err, success: false});
-                return;
-            }
+        var group = new models.Group(groupname);
+        group.get_members(function(body) {
             var group_members = body.rows.map(function(row) { return row.value; });
             if (group_members.indexOf(username) == -1) {
                 res.send({error: 'User not in group', success: false});
@@ -115,9 +108,10 @@ exports.install_routes = function(app) {
             }, function(err) {
                 res.send({error: 'Could not find user', success: false});
             });
+        }, function(err) {
+            res.send({error: err, success: false});
         });
     });
-
 
     app.get('/group/:groupname/members', auth.checkAuth, function(req, res) {
         var name = req.params.groupname;
@@ -137,19 +131,18 @@ exports.install_routes = function(app) {
     });
 
     app.get('/user/:username/groups', auth.checkAuth, function(req, res) {
-        var name = req.params.username;
+        var username_from_url = req.params.username;
         var username = req.user.username;
-        if (username != name) {
-            res.send({error: "You cannot view another user's groups yet", success: false});
+        if (username != username_from_url) {
+            res.send({error: "You cannot view another user's groups", success: false});
             return;
         }
-        db.groupmembers.view('groups', 'groups', {keys: [name]}, function(err, body) {
-            if (err) {
-                res.send({error: err, success: false});
-                return;
-            }
+        var user = new models.Personal(username);
+        user.get_groups(function(body) {
             var groups = body.rows.map(function(row) { return row.value; });
             res.send({groups: groups, success: true});
+        }, function(err) {
+            res.send({error: err, success: false});
         });
     });
 };

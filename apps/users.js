@@ -98,11 +98,10 @@ exports.install_routes = function(app) {
                        });
                        new_user.save(function() {
                            var personal = new models.Personal(pid.toString());
-                           personal.email = email;
-                           personal_object = {
+                           personal.update({
                                username: pid.toString(),
                                email: email
-                           };
+                           });
                            personal.save(function() {
                                res.send({success: true});
                            }, function(err) {
