@@ -137,6 +137,68 @@ var Transaction = function(id) {
     this.attributes = {};
     this.db = db.transactions
     this.set('id', id);
+    this.getAllTransactions = function(username, callback, err_cb) {
+        this.view([username], 'alltransactions', db.transactions, callback, err_cb);
+    };
+    this.getUserTransactions = function(username1, username2, callback, err_cb) {
+        this.view([[username1, username2]], 'usertransactions', db.transactions,
+                        callback, err_cb);
+    };
+    this.getGroupTransactions = function(username, groupname, callback, err_cb) {
+        this.view([[username, groupname]], 'grouptransactions', db.transactions,
+                        callback, err_cb);
+    };
+    this.advance = function(username, callback, err_cb) {
+        username = username.toString();
+        //Verify that the user can actually update the transaction
+        // flow is represented by an fsm but the path should be always
+        // increasing and will skip either 3 or 4 to get to 5
+        // Remember the following rules:
+        // 1 = if direction then waiting on receiver else waiting on sender
+        // 2 = waiting on either user
+        // 3 = waiting on receiver
+        // 4 = waiting on sender
+        // 5 = done
+        var numToUpdateTo = -1;
+        switch (this.get('status')) {
+        case 1:
+            if (this.get('direction') && username == this.get('receiver') ||
+                !this.get('direction') && username == this.get('sender')) {
+                numToUpdateTo = 2;
+            }
+            break;
+        case 2:
+            if (username === this.get('sender')) {
+                numToUpdateTo = 3;
+            } else if (username === this.get('receiver')) {
+                numToUpdateTo = 4;
+            }
+            break;
+        case 3:
+            if (username === this.get('receiver')) {
+                numToUpdateTo = 5;
+            }
+            break;
+        case 4:
+            if (username === this.get('sender')) {
+                numToUpdateTo = 5;
+            }
+            break;
+        default:
+            break;
+        }
+        if (numToUpdateTo == 5) {
+            //TODO increment reputation and stuff
+        }
+        if (numToUpdateTo == -1) {
+            //User not able to update transaction
+            err_cb('Not able to update');
+            return;
+        }
+        this.set('status', numToUpdateTo);
+        this.set('lastModifiedTime', new Date());
+        callback();
+    };
 }
 Transaction.prototype = _.clone(ModelBase);
 

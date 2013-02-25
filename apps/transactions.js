@@ -134,59 +134,15 @@ exports.install_routes = function(app) {
                 res.send({error: 'Unable to find transaction', success: false});                
                 return;
             }
-            //Verify that the user can actually update the transaction
-            // flow is represented by an fsm but the path should be always
-            // increasing and will skip either 3 or 4 to get to 5
-            // Remember the following rules:
-            // 1 = if direction then waiting on receiver else waiting on sender
-            // 2 = waiting on either user
-            // 3 = waiting on receiver
-            // 4 = waiting on sender
-            // 5 = done
-            var numToUpdateTo = -1;
-            switch (body.status) {
-            case 1:
-                if (body.direction && username === body.receiver ||
-                    !body.direction && username === body.sender) {
-                    numToUpdateTo = 2;
-                }
-                break;
-            case 2:
-                if (username === body.sender) {
-                    numToUpdateTo = 3;
-                } else if (username === body.receiver) {
-                    numToUpdateTo = 4;
-                }
-                break;
-            case 3:
-                if (username === body.receiver) {
-                    numToUpdateTo = 5;
-                }
-                break;
-            case 4:
-                if (username === body.sender) {
-                    numToUpdateTo = 5;
-                }
-                break;
-            default:
-                break;
-            }
-            if (numToUpdateTo == 5) {
-                //TODO increment reputation and stuff
-            }
-            if (numToUpdateTo == -1) {
-                //User not able to update transaction
-                res.send({error: 'Not able to update', success: false});
-                return;
-            }
-            body.status = numToUpdateTo;
-            body.lastModifiedTime = new Date();
-            transaction_model.update(body);
-            transaction_model.save(function(body) {
-                console.log("Updated transaction="+transaction);
-                res.send({success: true});
+            transaction_model.advance(username, function() {
+                transaction_model.save(function(body) {
+                    console.log("Updated transaction="+transaction);
+                    res.send({success: true});
+                }, function(err) {
+                    res.send({error: 'Unable to update transaction', success: false});
+                });
             }, function(err) {
-                res.send({error: 'Unable to update transaction', success: false});
+                res.send({error: err, success: false});
             });
         }, function(err) {
             res.send({error: 'Unable to find transaction', success: false});   
@@ -196,56 +152,50 @@ exports.install_routes = function(app) {
     app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
         var username = req.params.username;
         if (req.user.username !== username) {
-            res.send({error: "You can't see other members's transactions", success: false});
+            res.send({error: "You can't see other members' transactions", success: false});
         }
-        db.transactions.view('alltransactions', 'alltransactions', {keys: [username]}, 
-          function(err, body) {
-              if (!err) {
-                  var transactions = body.rows.map(function(row) {   
-                      var trans = row.value;
-                      utils.cleanDoc(trans);
-                      return trans;
-                  });
-                  res.send({transactions: transactions, success: true});
-              } else {
-                  res.send({error: err, success: false});
-              }
-          });
+        var trans = new models.Transaction();
+        trans.getAllTransactions(username, function(body) {
+            var transactions = body.rows.map(function(row) {   
+                var trans = row.value;
+                utils.cleanDoc(trans);
+                return trans;
+            });
+            res.send({transactions: transactions, success: true});
+        }, function(err) {
+            res.send({error: err, success: false});
+        });
     });
 
     app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
         var username_other = req.params.username;
         var username = req.user.username;
-        db.transactions.view('usertransactions', 'usertransactions', {keys: [[username, username_other]]}, 
-          function(err, body) {
-              if (!err) {
-                  var transactions = body.rows.map(function(row) {   
-                      var trans = row.value;
-                      utils.cleanDoc(trans);
-                      return trans;
-                  });
-                  res.send({transactions: transactions, success: true});
-              } else {
-                  res.send({error: err, success: false});
-              }
-          });
+        var trans = new models.Transaction();
+        trans.getUserTransactions(username, username_other, function(body) {
+            var transactions = body.rows.map(function(row) {   
+                var trans = row.value;
+                utils.cleanDoc(trans);
+                return trans;
+            });
+            res.send({transactions: transactions, success: true});
+        }, function(err) {        
+            res.send({error: err, success: false});
+        });
     });
 
     app.get('/group/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
         var groupname = req.params.groupname;
-        db.transactions.view('grouptransactions', 'grouptransactions', 
-          {keys: [[req.user.username, groupname]]}, function(err, body) {
-              if (!err) {
-                  var transactions = body.rows.map(function(row) {   
-                      var trans = row.value;
-                      utils.cleanDoc(trans);
-                      return trans;
-                  });
-                  res.send({transactions: transactions, success: true});
-              } else {
-                  res.send({error: err, success: false});
-              }
-          });
+        var trans = new models.Transaction();
+        trans.getGroupTransactions(req.user.username, groupname, function(body) {
+            var transactions = body.rows.map(function(row) {   
+                var trans = row.value;
+                utils.cleanDoc(trans);
+                return trans;
+            });
+            res.send({transactions: transactions, success: true});
+        }, function(err) {
+            res.send({error: err, success: false});
+        });
     });
 };
 
