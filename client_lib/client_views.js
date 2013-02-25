@@ -7,27 +7,68 @@ define('client_views', ['backbone', 'underscore', 'jquery', 'client_models'], fu
         attributes: {
             'class': 'span2 sidebar-pane'
         },
-        entryTemplate: "<li><a href=<%= entry_url %>><%= entry_title %></a></li>",
+        entryTemplate: "<li><a class='group-sidebar-entry'" +
+            "href=<%= entry_url %> index=<%= index %>><%= entry_title %></a></li>",
+
+        events: {
+            ".group-sidebar-entry click" : "switch_group"
+        },
         groups: [],
         render: function() {
             this.$el.empty();
             var groups_list = $('<ul>');
-            this.groups.each(function(group) {
-                groups_list.append(_.template(this.entryTemplate, { entry_url: group.url(), entry_title: group.get('name')}));
+            this.groups.each(function(group, i) {
+                groups_list.append(_.template(this.entryTemplate, {
+                    entry_url: group.url(),
+                    entry_title: group.get('name'),
+                    index: i
+                }));
             }, this);
             this.$el.append(groups_list);
+            this.$('.group-sidebar-entry').on('click', _.bind(this.switch_group, this));
+        },
+
+        switch_group: function(event) {
+            event.preventDefault();
+            // TODO: Fix this broken code
+            var group_index = parseInt(event.currentTarget.attributes.index.value, 10);
+            var group = this.groups.at(group_index);
+            app_events.trigger('app:switch-group', group);
         }
     });
 
     var GroupView = Backbone.View.extend({
+        initialize: function() {
+            app_events.on("app:switch-group", function(group) {
+                this.group = group;
+                this.render();
+            }, this);
+        },
+
+        template: "<h2><a href='<%= group_url %>'><%= group_name %></a></h2>" +
+            "<h3> Members: </h3>" +
+            "<ul><% group_members.each(function(member) { %>" +
+            "<li><a href=<%= member.url() %>><%= member.name() %></a></li>" +
+            "<% }); %> </ul>",
+
         tagName: 'div',
+
         attributes: {
             'class' : 'span8 main-pane'
         },
+
         render: function() {
             this.$el.empty();
-            this.$el.html('Hello there!');
-            // Do stuff
+            if (this.group) {
+                this.group.members(_.bind(function(members) {
+                    var data = {
+                        group_url: this.group.url(),
+                        group_name: this.group.get('name'),
+                        group_members: members
+                    };
+                    this.$el.html(_.template(this.template, data));
+                }, this));
+            }
         }
     });
             
