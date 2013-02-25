@@ -2,6 +2,7 @@
 
 var db = require('../db');
 var _ = require('underscore')._;
+var utils = require('../utils');
 
 var ModelBase = {
     // Function that saves the object in the database
@@ -36,6 +37,16 @@ var ModelBase = {
             }
         }, this));
 
+    },
+    // Function that performs a view
+    view: function(keys, name, db, callback, err_cb) {
+        db.view(name, name, {keys: keys}, _.bind(function(err, body) {
+            if (err) {
+                err_cb(err);
+            } else {
+                callback(body);
+            }
+        }, this));
     },
     // Function that can be overridden to use any attribute as an id
     get_id: function() {
@@ -77,7 +88,6 @@ var ModelBase = {
             }
         }
     }
-
 };
 
 var User = function(id) {
@@ -117,6 +127,9 @@ var Personal = function(id) {
     this.get_id = function() {
         return this.get('username');
     };
+    this.get_groups = function(callback, err_cb) {
+        this.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
+    };
 };
 Personal.prototype = _.clone(ModelBase);
 
@@ -140,6 +153,9 @@ var Group = function(id) {
     this.set('name', id);
     this.get_id = function() {
         return this.get('name');
+    };
+    this.get_members = function(callback, err_cb) {
+        this.view([this.get_id()], 'members', db.groupmembers, callback, err_cb);
     };
 }
 Group.prototype = _.clone(ModelBase);

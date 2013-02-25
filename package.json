@@ -9,6 +9,7 @@
         "connect": "2.7.x",
         "connect-couchdb": "0.2.x",
         "validator": "0.4.x",
-        "underscore": "1.4.4"
+        "underscore": "1.4.4",
+        "jasmine-node": "1.2.3"
     }
 }

@@ -122,11 +122,8 @@ exports.install_routes = function(app) {
     app.get('/group/:groupname/members', auth.checkAuth, function(req, res) {
         var name = req.params.groupname;
         var username = req.user.username;
-        db.groupmembers.view('members', 'members', {keys: [name]}, function(err, body) {
-            if (err) {
-                res.send({error: err, success: false});
-                return;
-            }
+        var group = new models.Group(name);
+        group.get_members(function(body) {
             var group_members = body.rows.map(function(row) { return row.value; });
             if (group_members.indexOf(username) == -1) {
                 res.send({error: 'User not in group', success: false});
@@ -134,6 +131,8 @@ exports.install_routes = function(app) {
             } else {
                 res.send({members: group_members, success: true});
             }
+        }, function(err) {
+            res.send({error: err, success: false});
         });
     });
 
