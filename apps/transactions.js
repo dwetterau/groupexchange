@@ -4,6 +4,7 @@ var check = require('../validate').check;
 var auth = require('./auth');
 var nano = db.nano;
 var utils = require('../utils');
+var models = require('./models');
 
 function numTransactions(callback) {
     nano.db.get('transactions', function(err, body) {
@@ -71,25 +72,20 @@ exports.install_routes = function(app) {
             // transaction at the same time and it gets keyed as the same thing.
             // With creator first ordering this can't happen.
             transaction_name = username1 + '-' + username2 + '-' + num_transactions;
-            
-            console.log("Made new transasction="+transaction_name);
-            transactionObject.id = transaction_name;
-            
-            db.transactions.insert(transactionObject, transaction_name, function(err, body) {
-                if (err) {
-                    res.send({error: "Failed to add transaction", success: false});
-                } else {
-                    res.send({success: true});
-                }
+            var new_transaction = new models.Transaction(transaction_name); 
+            new_transaction.update(transactionObject);
+            new_transaction.save(function() {
+                res.send({id: transaction_name, success: true});
+            }, function(err) {
+                res.send({error: "Failed to add transaction", success: false});
             });
         };
-
-        db.personal.head(username2, function (err, body) {
-            if (!err) {
-                numTransactions(makeTransaction);
-            } else {
-                res.send({error: "Retrieval failed", success: false});
-            }
+        
+        var other_user = new models.Personal(username2);
+        other_user.exists(function() {
+            numTransactions(makeTransaction);
+        }, function(err) {
+            res.send({error: "Retrieval failed", success: false});
         });
     });
 
@@ -105,20 +101,19 @@ exports.install_routes = function(app) {
             res.send({error: e.message, success: false});
             return;
         }
-
-        db.transactions.get(transaction, function (err, doc) {
-            if (!err) {
-                if (!(username === doc.sender || username === doc.receiver)) {
-                    //User shouldn't see it even though it was found
-                    res.send({error: 'Unable to find transaction', success: false});                
-                    return;
-                }
-                console.log("Retrieved transaction data for transaction="+transaction);
-                utils.cleanDoc(doc);
-                res.send({transaction: doc, success: true});
-            } else {
-                res.send({error: 'Unable to find transaction', success: false});
-            }   
+        var transaction_model = new models.Transaction(transaction);
+        transaction_model.load(function(doc) {
+            if (!(username === doc.sender || username === doc.receiver)) {
+                //User shouldn't see it even though it was found
+                res.send({error: 'Unable to find transaction', success: false});                
+                return;
+            }
+            console.log("Retrieved transaction data for transaction="+transaction);
+            utils.cleanDoc(doc);
+            res.send({transaction: doc, success: true});
+            }, 
+        function(err) { 
+            res.send({error: 'Unable to find transaction', success: false});
         });
     });
 
@@ -132,77 +127,71 @@ exports.install_routes = function(app) {
             res.send({error: e.message, success: false});
             return;
         }
-        
-        db.transactions.get(transaction, function (err, body) {
-            if (!err) {
-                if (!(username === body.sender || username === body.receiver)) {
-                    //User shouldn't see it even though it was found
-                    res.send({error: 'Unable to find transaction', success: false});                
-                    return;
+        var transaction_model = new models.Transaction(transaction);
+        transaction_model.load(function (body) {
+            if (!(username === body.sender || username === body.receiver)) {
+                //User shouldn't see it even though it was found
+                res.send({error: 'Unable to find transaction', success: false});                
+                return;
+            }
+            //Verify that the user can actually update the transaction
+            // flow is represented by an fsm but the path should be always
+            // increasing and will skip either 3 or 4 to get to 5
+            // Remember the following rules:
+            // 1 = if direction then waiting on receiver else waiting on sender
+            // 2 = waiting on either user
+            // 3 = waiting on receiver
+            // 4 = waiting on sender
+            // 5 = done
+            var numToUpdateTo = -1;
+            switch (body.status) {
+            case 1:
+                if (body.direction && username === body.receiver ||
+                    !body.direction && username === body.sender) {
+                    numToUpdateTo = 2;
                 }
-                //Verify that the user can actually update the transaction
-                // flow is represented by an fsm but the path should be always
-                // increasing and will skip either 3 or 4 to get to 5
-                // Remember the following rules:
-                // 1 = if direction then waiting on receiver else waiting on sender
-                // 2 = waiting on either user
-                // 3 = waiting on receiver
-                // 4 = waiting on sender
-                // 5 = done
-                var numToUpdateTo = -1;
-                switch (body.status) {
-                case 1:
-                    if (body.direction && username === body.receiver ||
-                        !body.direction && username === body.sender) {
-                        numToUpdateTo = 2;
-                    }
-                    break;
-                case 2:
-                    if (username === body.sender) {
-                        numToUpdateTo = 3;
-                    } else if (username === body.receiver) {
-                        numToUpdateTo = 4;
-                    }
-                    break;
-                case 3:
-                    if (username === body.receiver) {
-                        numToUpdateTo = 5;
-                    }
-                    break;
-                case 4:
-                    if (username === body.sender) {
-                        numToUpdateTo = 5;
-                    }
-                    break;
-                default:
-                    break;
+                break;
+            case 2:
+                if (username === body.sender) {
+                    numToUpdateTo = 3;
+                } else if (username === body.receiver) {
+                    numToUpdateTo = 4;
                 }
-                if (numToUpdateTo == 5) {
-                    //TODO increment reputation and stuff
+                break;
+            case 3:
+                if (username === body.receiver) {
+                    numToUpdateTo = 5;
                 }
-                if (numToUpdateTo == -1) {
-                    //User not able to update transaction
-                    res.send({error: 'Not able to update', success: false});
-                    return;
+                break;
+            case 4:
+                if (username === body.sender) {
+                    numToUpdateTo = 5;
                 }
-                body.status = numToUpdateTo;
-                body.lastModifiedTime = new Date();
-                db.transactions.insert(body, body.id, function (err, body) {
-                    if (!err) {
-                        console.log("Updated transaction="+transaction);
-                        res.send({success: true});
-                    } else {
-                        res.send({error: 'Unable to update transaction', success: false});
-                    }
-                });
-            } else {
-                res.send({error: 'Unable to find transaction', success: false});
-            }   
+                break;
+            default:
+                break;
+            }
+            if (numToUpdateTo == 5) {
+                //TODO increment reputation and stuff
+            }
+            if (numToUpdateTo == -1) {
+                //User not able to update transaction
+                res.send({error: 'Not able to update', success: false});
+                return;
+            }
+            body.status = numToUpdateTo;
+            body.lastModifiedTime = new Date();
+            transaction_model.update(body);
+            transaction_model.save(function(body) {
+                console.log("Updated transaction="+transaction);
+                res.send({success: true});
+            }, function(err) {
+                res.send({error: 'Unable to update transaction', success: false});
+            });
+        }, function(err) {
+            res.send({error: 'Unable to find transaction', success: false});   
         });
     });
-
-
-
 
     app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
         var username = req.params.username;

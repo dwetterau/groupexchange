@@ -54,8 +54,8 @@ exports.install_routes = function(app) {
             if (req.user.username !== username) {
                 //TODO add check to see if they are "partners"
                 for (var attr in personal.get('permissions').global) {
-                    if (personal.get('permissions').global[attr]) {
-                        doc[attr] = undefined;
+                    if (!personal.get('permissions').global[attr]) {
+                        personal.set(attr, undefined);
                     }
                 }
             }
@@ -118,7 +118,6 @@ exports.install_routes = function(app) {
         };
         getNewPID(createAccount);
     });
-
 
     app.post('/updateprofile', auth.checkAuth, function(req, res) {
         var username = req.user.username;
