@@ -6,41 +6,6 @@ var utils = require('../utils');
 var check = require('../validate').check;
 var _ = require('underscore')._;
 var nano = db.nano;
-var models = require('./models');
-
-// This is serialized for now.. I'll probably want to change that
-function getNewPID(callback) {
-    db.users.get('c', function(err, body) {
-        if (err) {
-            //Start a new counter. This should only happen once
-            nano.db.get('users', function(err, body) {
-                var num = body.doc_count;
-                if (err) {
-                    //Also should never happen
-                } else {
-                    db.users.insert({num: num}, 'c', function(err, body) {
-                        if (err) {
-                            //Should never happen
-                        } else {
-                            callback(num);
-                        }
-                    });
-                }
-            });
-        } else {
-            body.num += 1;
-            var num = body.num;
-            db.users.insert(body, 'c', function(err, body) {
-                if (err) {
-                    //try again
-                    getNewPID(callback);
-                } else {
-                    callback(num);
-                }
-            });
-        }
-    });
-}
 
 exports.install_routes = function(app) {
     app.get('/user/:username', auth.checkAuth, function(req, res) {
@@ -49,7 +14,7 @@ exports.install_routes = function(app) {
         if (username === 'me') {
             username = req.user.username;
         }
-        var personal = new models.Personal(username);
+        var personal = new app.Personal(username);
         personal.load(function(doc) {
             if (req.user.username !== username) {
                 //TODO add check to see if they are "partners"
@@ -68,54 +33,53 @@ exports.install_routes = function(app) {
     });
 
     app.post('/makeaccount', function(req, res) {
-        // Just btw, pid = profile id
-        createAccount = function(pid) { 
-           var email = req.body.email.toLowerCase();
-           var pass = req.body.password;
+        app.bucket.incr('user::count', function(err, pid) { 
+            if (err) {
+                res.send({error: err, success: false});
+                return;
+            }
+                
+            console.log(pid);
+            var email = req.body.email.toLowerCase();
+            var pass = req.body.password;
 
-           try {
-               check(pid, 'pid');
-               check(email, 'email');
-           } catch (e) {
-               res.send({error: e.message, success: false});
-               return;
-           }
-           
-           db.users.head(email, function(err, body) {
-               if (!err) {
-                   res.send({error: 'Email is already in use', success: false});
-               } else {
-                   var salt = auth.generateSalt(128);
-                   auth.hash_password(pass, salt, function(hashed_pass) {
-                       //create the account
-                       var new_user = new models.User(email);
-                       new_user.update({
-                           username: pid.toString(),
-                           email: email,
-                           password: hashed_pass,
-                           salt: salt,
-                           reputation: 0
-                       });
-                       new_user.save(function() {
-                           var personal = new models.Personal(pid.toString());
-                           personal.update({
-                               username: pid.toString(),
-                               email: email
-                           });
-                           personal.save(function() {
-                               res.send({success: true});
-                           }, function(err) {
-                               res.send({error: err, success: false});
-                           });
-                       }, function(err) {
-                           res.send({error: 'Unable to make account at this time', 
-                                     success: false});
-                       });
-                   });
-               }
-           });
-        };
-        getNewPID(createAccount);
+            try {
+                check(pid, 'pid');
+                check(email, 'email');
+            } catch (e) {
+                res.send({error: e.message, success: false});
+                return;
+            }
+
+            var salt = auth.generateSalt(128);
+            auth.hash_password(pass, salt, function(hashed_pass) {
+                //create the account
+                var new_user = new app.User(email);
+                new_user.update({
+                    username: pid.toString(),
+                    email: email,
+                    password: hashed_pass,
+                    salt: salt,
+                    reputation: 0
+                });
+                // TODO: Create create function calls
+                new_user.save(function() {
+                    var personal = new app.Personal(pid.toString());
+                    personal.update({
+                        username: pid.toString(),
+                        email: email
+                    });
+                    personal.save(function() {
+                        res.send({success: true});
+                    }, function(err) {
+                        res.send({error: err, success: false});
+                    });
+                }, function(err) {
+                    res.send({error: 'Unable to make account at this time', 
+                              success: false});
+                });
+            });
+        });
     });
 
     app.post('/updateprofile', auth.checkAuth, function(req, res) {
@@ -144,7 +108,7 @@ exports.install_routes = function(app) {
             res.send({error: "Nothing to update", success: true});
             return;
         }
-        var personal = new models.Personal(username);
+        var personal = new app.Personal(username);
         personal.load(function() {
             personal.update(updates);
             personal.save(function() {

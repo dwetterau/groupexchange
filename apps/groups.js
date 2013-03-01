@@ -1,18 +1,16 @@
 // Groups.js - api calls to create and manage groups
 
-var db = require('../db');
 var auth = require('./auth');
 var check = require('../validate').check;
 var utils = require('../utils');
-var models = require('./models');
 
-function addUserToGroup(username, groupname, res) {
+function addUserToGroup(app, username, groupname, res) {
     link_object = {
         user: username,
         group: groupname
     };
     id = username+groupname;
-    var groupmember_model = new models.GroupMember(id);
+    var groupmember_model = new app.GroupMember(id);
     groupmember_model.update(link_object);
     groupmember_model.save(function(body) {
         res.send({success: true});
@@ -28,7 +26,7 @@ exports.install_routes = function(app) {
     app.get('/group/:name', auth.checkAuth, function(req, res) {
         var groupname = req.params.name;
         var username = req.user.username;
-        var group = new models.Group(groupname);
+        var group = new app.Group(groupname);
         group.get_members(function(body) {
             var group_members = body.rows.map(function(row) { return row.value; });
             if (group_members.indexOf(username) == -1) {
@@ -59,7 +57,7 @@ exports.install_routes = function(app) {
         }
 
         var group_name_combined = username + '-' + groupname; 
-        var group_model = new models.Group(group_name_combined);
+        var group_model = new app.Group(group_name_combined);
         
         group_model.exists(function() { 
             res.send({error: 'Groupname is in use', success: false}); 
@@ -71,7 +69,7 @@ exports.install_routes = function(app) {
             });
             group_model.save(function(body) {
                 console.log('Made new group='+group_name_combined);
-                addUserToGroup(username, group_name_combined, res); 
+                addUserToGroup(app, username, group_name_combined, res); 
             }, function(err) {
                 res.send({error: 'Unable to make group at this time', success: false});
             });
@@ -91,7 +89,7 @@ exports.install_routes = function(app) {
             res.send({error: e.message, success: false});
             return;
         }
-        var group = new models.Group(groupname);
+        var group = new app.Group(groupname);
         group.get_members(function(body) {
             var group_members = body.rows.map(function(row) { return row.value; });
             if (group_members.indexOf(username) == -1) {
@@ -102,9 +100,9 @@ exports.install_routes = function(app) {
                 res.send({error: 'User already in group', success: false});
                 return;
             }
-            user_to_add_model = new models.Personal(user_to_add);
+            user_to_add_model = new app.Personal(user_to_add);
             user_to_add_model.exists(function(body) {
-                addUserToGroup(user_to_add, groupname, res);
+                addUserToGroup(app, user_to_add, groupname, res);
             }, function(err) {
                 res.send({error: 'Could not find user', success: false});
             });
@@ -116,7 +114,7 @@ exports.install_routes = function(app) {
     app.get('/group/:groupname/members', auth.checkAuth, function(req, res) {
         var name = req.params.groupname;
         var username = req.user.username;
-        var group = new models.Group(name);
+        var group = new app.Group(name);
         group.get_members(function(body) {
             var group_members = body.rows.map(function(row) { return row.value; });
             if (group_members.indexOf(username) == -1) {
@@ -137,7 +135,7 @@ exports.install_routes = function(app) {
             res.send({error: "You cannot view another user's groups", success: false});
             return;
         }
-        var user = new models.Personal(username);
+        var user = new app.Personal(username);
         user.get_groups(function(body) {
             var groups = body.rows.map(function(row) { return row.value; });
             res.send({groups: groups, success: true});

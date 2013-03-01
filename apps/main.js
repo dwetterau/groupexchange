@@ -19,28 +19,27 @@ exports.install_routes = function(app) {
         }
         
         var response = {logged_in: false};
-        db.users.get(email, function (err, body) {
-            if (!err) {
-                //check the password
-                auth.hash_password(pass, body.salt, function(hashed_pass) {
-                    if (body.password == hashed_pass) {
-                        req.session.user_id = email;
-                        response.logged_in = true;
-                        response.username = body.username;
-                    } else {
-                        response.error = 'Invalid username or password';
-                    }
-                    //if (remember me checked)
-                    // Set the expiration time on cookie
-                    response.success = true;
-                    res.send(response);
-                });
-            } else {
-                //Couldn't find it in database OR database is unavailable
-                response.error = 'Invalid email or password';
-                response.success = false;
+        var user = new app.User();
+        user.set('email', email);
+        user.load(function (body) {
+            auth.hash_password(pass, body.salt, function(hashed_pass) {
+                if (body.password == hashed_pass) {
+                    req.session.user_id = email;
+                    response.logged_in = true;
+                    response.username = body.username;
+                } else {
+                    response.error = 'Invalid username or password';
+                }
+                //if (remember me checked)
+                // Set the expiration time on cookie
+                response.success = true;
                 res.send(response);
-            }
+            });
+        }, function(err) {
+            //Couldn't find it in database OR database is unavailable
+            response.error = 'Invalid email or password';
+            response.success = false;
+            res.send(response);
         });
     });
 

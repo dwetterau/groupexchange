@@ -1,13 +1,20 @@
 var settings = require('./settings').settings;
-var nano = require('nano')('http://' + settings.couchdb_hostname + ':' + settings.couchdb_port);
-var databases = ['users', 
-                 'transactions', 
-                 'groups', 
-                 'sessions', 
-                 'groupmembers', 
-                 'personal'];
-databases.forEach(function(database) {
-    exports[database] = nano.use(database);
-});
-exports.nano = nano;
-exports.databases = databases;
+var couchbase = require('couchbase');
+exports.ready = function(callback) {
+    var open_bucket = false;
+    if (open_bucket) {
+        callback(open_bucket);
+    } else {
+        couchbase.connect(settings.couchbase_config, function(err, bucket) {
+            if (err) {
+                // Could not connect to the DB? Big issue.
+                throw err;
+            }
+            open_bucket = bucket;
+            callback(bucket);
+            open_bucket = false;
+        });
+    }
+};
+
+

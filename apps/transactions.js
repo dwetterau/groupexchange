@@ -1,19 +1,20 @@
 // Transactions.js - Functions related to managing transactions between users and groups
-var db = require('../db');
 var check = require('../validate').check;
 var auth = require('./auth');
-var nano = db.nano;
 var utils = require('../utils');
-var models = require('./models');
 
+var n = 0;
 function numTransactions(callback) {
-    nano.db.get('transactions', function(err, body) {
+    // TODO: lol
+    console.log(n);
+    callback(++n);
+    /*nano.db.get('transactions', function(err, body) {
         if (!err) {
             callback(body.doc_count);
         } else {
             callback(-1);
         }
-    });
+    });*/
 }
 
 exports.install_routes = function(app) {
@@ -27,7 +28,7 @@ exports.install_routes = function(app) {
         var details = req.body.details;
         var group  = req.body.group;
         
-        try {
+        /*try {
             check(username2, "username");
             check(amount, "value");
             if (details) {
@@ -39,7 +40,7 @@ exports.install_routes = function(app) {
         } catch (e) {
             res.send({error: e, success: false});
             return;
-        }
+        }*/
         
         var sender = username1, receiver = username2;
         if (!direction) {
@@ -72,7 +73,7 @@ exports.install_routes = function(app) {
             // transaction at the same time and it gets keyed as the same thing.
             // With creator first ordering this can't happen.
             transaction_name = username1 + '-' + username2 + '-' + num_transactions;
-            var new_transaction = new models.Transaction(transaction_name); 
+            var new_transaction = new app.Transaction(transaction_name); 
             new_transaction.update(transactionObject);
             new_transaction.save(function() {
                 res.send({id: transaction_name, success: true});
@@ -81,12 +82,12 @@ exports.install_routes = function(app) {
             });
         };
         
-        var other_user = new models.Personal(username2);
-        other_user.exists(function() {
+        //var other_user = new app.Personal(username2);
+        //other_user.exists(function() {
             numTransactions(makeTransaction);
-        }, function(err) {
-            res.send({error: "Retrieval failed", success: false});
-        });
+        //}, function(err) {
+        //    res.send({error: "Retrieval failed", success: false});
+        //});
     });
 
 
@@ -101,7 +102,7 @@ exports.install_routes = function(app) {
             res.send({error: e.message, success: false});
             return;
         }
-        var transaction_model = new models.Transaction(transaction);
+        var transaction_model = new app.Transaction(transaction);
         transaction_model.load(function(doc) {
             if (!(username === doc.sender || username === doc.receiver)) {
                 //User shouldn't see it even though it was found
@@ -127,7 +128,7 @@ exports.install_routes = function(app) {
             res.send({error: e.message, success: false});
             return;
         }
-        var transaction_model = new models.Transaction(transaction);
+        var transaction_model = new app.Transaction(transaction);
         transaction_model.load(function (body) {
             if (!(username === body.sender || username === body.receiver)) {
                 //User shouldn't see it even though it was found
@@ -154,7 +155,7 @@ exports.install_routes = function(app) {
         if (req.user.username !== username) {
             res.send({error: "You can't see other members' transactions", success: false});
         }
-        var trans = new models.Transaction();
+        var trans = new app.Transaction();
         trans.getAllTransactions(username, function(body) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
@@ -170,7 +171,7 @@ exports.install_routes = function(app) {
     app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
         var username_other = req.params.username;
         var username = req.user.username;
-        var trans = new models.Transaction();
+        var trans = new app.Transaction();
         trans.getUserTransactions(username, username_other, function(body) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
@@ -185,7 +186,7 @@ exports.install_routes = function(app) {
 
     app.get('/group/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
         var groupname = req.params.groupname;
-        var trans = new models.Transaction();
+        var trans = new app.Transaction();
         trans.getGroupTransactions(req.user.username, groupname, function(body) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
