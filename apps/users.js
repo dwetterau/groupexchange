@@ -33,7 +33,7 @@ exports.install_routes = function(app) {
     });
 
     app.post('/makeaccount', function(req, res) {
-        app.bucket.incr('user::count', function(err, pid) { 
+        app.bucket.incr('user_count::count', function(err, pid) { 
             if (err) {
                 res.send({error: err, success: false});
                 return;
@@ -62,6 +62,7 @@ exports.install_routes = function(app) {
                     salt: salt,
                     reputation: 0
                 });
+                new_user.setBasicPermissions();
                 // TODO: Create create function calls
                 new_user.save(function() {
                     var personal = new app.Personal(pid.toString());

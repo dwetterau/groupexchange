@@ -52,14 +52,14 @@ exports.install_models = function(bucket, app) {
         // Type of model, overridden by subclasses
         type: "Base",
         // Function that can be overridden to use any attribute as an id
-        get_item_id: function() {
+        get_id: function() {
             if (this.attributes && this.attributes.id) {
                 return this.attributes.id;
             }
         },
         // Function to return the key used by the database
         get_db_id: function() {
-            return this.type + '::' + this.get_item_id();
+            return this.type + '::' + this.get_id();
         },
         // Does not actually return JSON string; this is how the JSON api
         // is supposed to work...
@@ -101,7 +101,7 @@ exports.install_models = function(bucket, app) {
         this.attributes = {};
         // TODO: I think this is going to change soon
         this.set('email', id);
-        this.get_item_id = function() {
+        this.get_id = function() {
             return this.get('email');
         };
     };
@@ -111,31 +111,31 @@ exports.install_models = function(bucket, app) {
 
     var Personal = function(id) {
         this.attributes = {};
-        this.db = db.personal;
-        // TODO: I don't understand what "Username" refers to, so I'll just leave it as such
         this.set('username', id);
         // Set permissions to default
-        this.set('permissions', {
-            global: {
-                firstname: true,
-                lastname: false,
-                email: false,
-                username: true,
-                reputation: true
-            },
-            partners: {
-                firstname: true,
-                lastname: true,
-                email: true,
-                username: true,
-                reputation: true
-            }
-        });
-        this.get_item_id = function() {
+        this.setBasicPermissions = function() {
+            this.set('permissions', {
+                global: {
+                    firstname: true,
+                    lastname: false,
+                    email: false,
+                    username: true,
+                    reputation: true
+                },
+                partners: {
+                    firstname: true,
+                    lastname: true,
+                    email: true,
+                    username: true,
+                    reputation: true
+                }
+            });
+        };
+        this.get_id = function() {
             return this.get('username');
         };
         this.get_groups = function(callback, err_cb) {
-            this.view([this.get_item_id()], 'groups', db.groupmembers, callback, err_cb);
+            this.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
         };
     };
     Personal.prototype = _.clone(ModelBase);
@@ -143,7 +143,6 @@ exports.install_models = function(bucket, app) {
 
     var Transaction = function(id) {
         this.attributes = {};
-        this.db = db.transactions;
         this.set('id', id);
         this.getAllTransactions = function(username, callback, err_cb) {
             this.view([username], 'alltransactions', db.transactions, callback, err_cb);
@@ -213,7 +212,6 @@ exports.install_models = function(bucket, app) {
 
     var GroupMember = function(id) {
         this.attributes = {};
-        this.db = db.groupmembers;
         this.set('id', id);
     };
     GroupMember.prototype = _.clone(ModelBase);
@@ -221,13 +219,12 @@ exports.install_models = function(bucket, app) {
 
     var Group = function(id) {
         this.attributes = {};
-        this.db = db.groups;
         this.set('name', id);
-        this.get_item_id = function() {
+        this.get_id = function() {
             return this.get('name');
         };
         this.get_members = function(callback, err_cb) {
-            this.view([this.get_item_id()], 'members', db.groupmembers, callback, err_cb);
+            this.view([this.get_id()], 'members', db.groupmembers, callback, err_cb);
         };
     };
     Group.prototype = _.clone(ModelBase);
