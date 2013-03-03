@@ -3,20 +3,6 @@ var check = require('../validate').check;
 var auth = require('./auth');
 var utils = require('../utils');
 
-var n = 0;
-function numTransactions(callback) {
-    // TODO: lol
-    console.log(n);
-    callback(++n);
-    /*nano.db.get('transactions', function(err, body) {
-        if (!err) {
-            callback(body.doc_count);
-        } else {
-            callback(-1);
-        }
-    });*/
-}
-
 exports.install_routes = function(app) {
     app.post('/addtransaction', auth.checkAuth, function(req, res) {
         //The request will store the usernames of both of the parties in the transaction
@@ -28,7 +14,7 @@ exports.install_routes = function(app) {
         var details = req.body.details;
         var group  = req.body.group;
         
-        /*try {
+        try {
             check(username2, "username");
             check(amount, "value");
             if (details) {
@@ -40,7 +26,7 @@ exports.install_routes = function(app) {
         } catch (e) {
             res.send({error: e, success: false});
             return;
-        }*/
+        }
         
         var sender = username1, receiver = username2;
         if (!direction) {
@@ -82,12 +68,18 @@ exports.install_routes = function(app) {
             });
         };
         
-        //var other_user = new app.Personal(username2);
-        //other_user.exists(function() {
-            numTransactions(makeTransaction);
-        //}, function(err) {
-        //    res.send({error: "Retrieval failed", success: false});
-        //});
+        var other_user = new app.Personal(username2);
+        other_user.exists(function() {
+            app.bucket.incr('trans_count::count', function(err, tid) {
+                if (err) {
+                    res.send({error: err, success: false});
+                } else {
+                    makeTransaction(tid);
+                }
+            }); 
+        }, function(err) {
+            res.send({error: "Retrieval failed", success: false});
+        });
     });
 
 
@@ -109,11 +101,9 @@ exports.install_routes = function(app) {
                 res.send({error: 'Unable to find transaction', success: false});                
                 return;
             }
-            console.log("Retrieved transaction data for transaction="+transaction);
             utils.cleanDoc(doc);
             res.send({transaction: doc, success: true});
-            }, 
-        function(err) { 
+        }, function(err) { 
             res.send({error: 'Unable to find transaction', success: false});
         });
     });
@@ -150,6 +140,7 @@ exports.install_routes = function(app) {
         });
     });
 
+    //TODO MAKE THESE STATIC
     app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
         var username = req.params.username;
         if (req.user.username !== username) {
