@@ -3,9 +3,10 @@
 
 var db = require('../db');
 var check = require('../validate').check;
-var auth = require('./auth');
 
 exports.install_routes = function(app) {
+    var auth = require('./auth')(app.Users);
+
     app.post('/login', function(req, res) {
         var email = req.body.email.toLowerCase();
         var pass = req.body.password;

@@ -1,6 +1,5 @@
 // Groups.js - api calls to create and manage groups
 
-var auth = require('./auth');
 var check = require('../validate').check;
 var utils = require('../utils');
 
@@ -23,6 +22,7 @@ function addUserToGroup(app, username, groupname, res) {
 }
 
 exports.install_routes = function(app) {
+    var auth = require('./auth')(app.User);
     app.get('/group/:name', auth.checkAuth, function(req, res) {
         var groupname = req.params.name;
         var username = req.user.username;

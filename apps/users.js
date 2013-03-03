@@ -1,6 +1,5 @@
 // Users.js - user management api calls 
 
-var auth = require('./auth');
 var db = require('../db');
 var utils = require('../utils');
 var check = require('../validate').check;
@@ -8,11 +7,12 @@ var _ = require('underscore')._;
 var nano = db.nano;
 
 exports.install_routes = function(app) {
-    app.get('/user/:username', auth.checkAuth, function(req, res) {
-        var username = req.params.username;
+    var auth = require('./auth')(app.User);
+    app.get('/user/:id', auth.checkAuth, function(req, res) {
+        var id = req.params.id;
         // If we get a request for "me", then send back the logged in users information
-        if (username === 'me') {
-            username = req.user.username;
+        if (id === 'me') {
+            id = req.user.get('id');
         }
         var personal = new app.Personal(username);
         personal.load(function(doc) {
@@ -33,7 +33,7 @@ exports.install_routes = function(app) {
     });
 
     app.post('/makeaccount', function(req, res) {
-        app.bucket.incr('user_count::count', function(err, pid) { 
+        app.bucket.incr('user::count', function(err, pid) { 
             if (err) {
                 res.send({error: err, success: false});
                 return;

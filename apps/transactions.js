@@ -1,9 +1,9 @@
 // Transactions.js - Functions related to managing transactions between users and groups
 var check = require('../validate').check;
-var auth = require('./auth');
 var utils = require('../utils');
 
 exports.install_routes = function(app) {
+    var auth = require('./auth')(app.User);
     app.post('/addtransaction', auth.checkAuth, function(req, res) {
         //The request will store the usernames of both of the parties in the transaction
         var username1 = req.user.username;

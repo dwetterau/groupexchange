@@ -4,99 +4,114 @@ var db = require('../db');
 var _ = require('underscore')._;
 var utils = require('../utils');
 
-exports.install_models = function(bucket, app) {
-    var ModelBase = {
-        // Function that saves the object in the database
-        save: function(callback, err_cb) {
-            bucket.set(this.get_db_id(), this.toJSON(), function(err, meta) {
+var ModelBase = {
+    // Function that creates the object in the database
+    create: function(attributes, callback, err_cb) {
+        var counter_id = this.type + '::' + 'count';
+        bucket.incr(counter_id, function(err, count) {
+            var dbid = this.type + '::' + count;
+            bucket.add(dbid, attributes, function(err, meta) {
                 if (err) {
                     err_cb(err);
                 } else {
                     callback(meta);
                 }
             });
-        },
-        // Function that loads the object from the database based on its id.
-        load: function(callback, err_cb) {
-            bucket.get(this.get_db_id(), _.bind(function(err, doc, meta) {
-                if (err) {
-                    err_cb(err);
-                } else {
-                    this.update(doc);
-                    callback(doc);
-                }
-            }, this));
-        },
-        // Function that checks to see if the object exists in the db or not based 
-        // off id. This will prevent a full load if that isn't needed.
-        exists: function(callback, err_cb) {
-            bucket.get(this.get_db_id(), _.bind(function(err, doc, meta) {
-                if (err) {
-                    err_cb(err);
-                } else {
-                    callback();
-                }
-            }, this));
+        });
+    },
+    
+    // Function that updates the object in the database
+    save: function(callback, err_cb) {
+        bucket.set(this.get_db_id(), this.toJSON(), function(err, meta) {
+            if (err) {
+                err_cb(err);
+            } else {
+                callback(meta);
+            }
+        });
+    },
+    // Function that loads the object from the database based on its id.
+    load: function(callback, err_cb) {
+        bucket.get(this.get_db_id(), _.bind(function(err, doc, meta) {
+            if (err) {
+                err_cb(err);
+            } else {
+                this.update(doc);
+                callback(doc);
+            }
+        }, this));
+    },
+    // Function that checks to see if the object exists in the db or not based 
+    // off id. This will prevent a full load if that isn't needed.
+    exists: function(callback, err_cb) {
+        bucket.get(this.get_db_id(), _.bind(function(err, doc, meta) {
+            if (err) {
+                err_cb(err);
+            } else {
+                callback();
+            }
+        }, this));
 
-        },
-        // Function that performs a view
-        view: function(keys, name, db, callback, err_cb) {
-            bucket.view('default', name, {keys: keys}, _.bind(function(err, view) {
-                if (err) {
-                    err_cb(err);
-                } else {
-                    callback(view);
-                }
-            }, this));
-        },
-        // Type of model, overridden by subclasses
-        type: "Base",
-        // Function that can be overridden to use any attribute as an id
-        get_id: function() {
-            if (this.attributes && this.attributes.id) {
-                return this.attributes.id;
+    },
+    // Function that performs a view
+    view: function(keys, name, db, callback, err_cb) {
+        bucket.view('default', name, {keys: keys}, _.bind(function(err, view) {
+            if (err) {
+                err_cb(err);
+            } else {
+                callback(view);
             }
-        },
-        // Function to return the key used by the database
-        get_db_id: function() {
-            return this.type + '::' + this.get_id();
-        },
-        // Does not actually return JSON string; this is how the JSON api
-        // is supposed to work...
-        // https://developer.mozilla.org/en-US/docs/JSON#toJSON%28%29_method
-        toJSON: function() {
-            if (this.attributes) {
-                // TODO: This isn't a deep clone, and should be
-                return _.clone(this.attributes);
-            }
-        },
-        // returns a value from attributes, use this function rather than attributes
-        // directly so that we can programmatically detect when attributes
-        // are accessed or modified
-        get: function(keyname) {
-            if (this.attributes) {
-                return this.attributes[keyname];
-            }
-        },
-        // sets a value in the attributes
-        set: function(keyname, value) {
-            if (this.attributes) {
-                this.attributes[keyname] = value;
-            }
-        },
-        // Update a set of values on the object
-        update: function(values) {
-            var key;
-            for (key in values) {
-                if (values.hasOwnProperty(key)) {
-                    if (this.attributes[key] != values[key]) {
-                        this.set(key, values[key]);
-                    }
+        }, this));
+    },
+    // Type of model, overridden by subclasses
+    type: "Base",
+    // Function that can be overridden to use any attribute as an id
+    get_id: function() {
+        if (this.attributes && this.attributes.id) {
+            return this.attributes.id;
+        }
+    },
+    // Function to return the key used by the database
+    get_db_id: function() {
+        return this.type + '::' + this.get_id();
+    },
+    // Does not actually return JSON string; this is how the JSON api
+    // is supposed to work...
+    // https://developer.mozilla.org/en-US/docs/JSON#toJSON%28%29_method
+    toJSON: function() {
+        if (this.attributes) {
+            // TODO: This isn't a deep clone, and should be
+            return _.clone(this.attributes);
+        }
+    },
+    // returns a value from attributes, use this function rather than attributes
+    // directly so that we can programmatically detect when attributes
+    // are accessed or modified
+    get: function(keyname) {
+        if (this.attributes) {
+            return this.attributes[keyname];
+        }
+    },
+    // sets a value in the attributes
+    set: function(keyname, value) {
+        if (this.attributes) {
+            this.attributes[keyname] = value;
+        }
+    },
+    // Update a set of values on the object
+    update: function(values) {
+        var key;
+        for (key in values) {
+            if (values.hasOwnProperty(key)) {
+                if (this.attributes[key] != values[key]) {
+                    this.set(key, values[key]);
                 }
             }
         }
-    };
+    }
+};
 
+exports.install_models = function(bucket, app) {
     var User = function(id) {
         this.attributes = {};
         // TODO: I think this is going to change soon
