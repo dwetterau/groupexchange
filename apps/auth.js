@@ -15,11 +15,10 @@ module.exports = function(User) {
         if (!is_logged_in(req)) {
             res.send(JSON.stringify({error: 'Not logged in', success: false}));
         } else {
-            var user = new User(req.session.user_id);
-            user.load(function() {
+            User.load(req.session.user_id).then(function(user) {
                 req.user = user;
                 next();
-            }, function(err) {
+            }).fail(function(err) {
                 next(err);
             });
         }

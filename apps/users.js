@@ -14,9 +14,8 @@ exports.install_routes = function(app) {
         if (id === 'me') {
             id = req.user.get('id');
         }
-        var personal = new app.Personal(username);
-        personal.load(function(doc) {
-            if (req.user.username !== username) {
+        var personal = app.Personal.load(id).then(function() {
+            if (req.user.get('id') !== id) {
                 //TODO add check to see if they are "partners"
                 for (var attr in personal.get('permissions').global) {
                     if (!personal.get('permissions').global[attr]) {
@@ -27,7 +26,7 @@ exports.install_routes = function(app) {
             var cleaned = personal.toJSON();
             utils.cleanDoc(cleaned);
             res.send({user: cleaned, success: true});
-        }, function(err) {
+        }).fail(function(err) {
             res.send({error: err, success: false});
         });
     });
@@ -54,28 +53,40 @@ exports.install_routes = function(app) {
             var salt = auth.generateSalt(128);
             auth.hash_password(pass, salt, function(hashed_pass) {
                 //create the account
-                var new_user = new app.User(email);
-                new_user.update({
-                    username: pid.toString(),
+                var new_user = app.User.create({
+                    id: pid.toString(),
                     email: email,
                     password: hashed_pass,
                     salt: salt,
-                    reputation: 0
-                });
-                new_user.setBasicPermissions();
-                // TODO: Create create function calls
-                new_user.save(function() {
-                    var personal = new app.Personal(pid.toString());
-                    personal.update({
-                        username: pid.toString(),
+                    reputation: 0,
+                    // TODO: Get default stuff in models to avoid this nonsense
+                    permissions: {
+                        global: {
+                            firstname: true,
+                            lastname: false,
+                            email: false,
+                            username: true,
+                            reputation: true
+                        },
+                        partners: {
+                            firstname: true,
+                            lastname: true,
+                            email: true,
+                            username: true,
+                            reputation: true
+                        }
+                    }
+                }).then(function(user) {
+                    console.log("making personal");
+                    var personal = app.Personal.create({
+                        id: pid.toString(),
                         email: email
-                    });
-                    personal.save(function() {
+                    }).then(function() {
                         res.send({success: true});
-                    }, function(err) {
+                    }).fail(function() {
                         res.send({error: err, success: false});
                     });
-                }, function(err) {
+                }).fail(function(err) {
                     res.send({error: 'Unable to make account at this time', 
                               success: false});
                 });

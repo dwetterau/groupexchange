@@ -20,11 +20,9 @@ exports.install_routes = function(app) {
         }
         
         var response = {logged_in: false};
-        var user = new app.User();
-        user.set('email', email);
-        user.load(function (body) {
-            auth.hash_password(pass, body.salt, function(hashed_pass) {
-                if (body.password == hashed_pass) {
+        app.User.load_by_index('email', email).then(function(user) {
+            auth.hash_password(pass, user.get('salt'), function(hashed_pass) {
+                if (user.get('password') == hashed_pass) {
                     req.session.user_id = email;
                     response.logged_in = true;
                     response.username = body.username;
@@ -36,7 +34,7 @@ exports.install_routes = function(app) {
                 response.success = true;
                 res.send(response);
             });
-        }, function(err) {
+        }).fail(function(err) {
             //Couldn't find it in database OR database is unavailable
             response.error = 'Invalid email or password';
             response.success = false;
