@@ -16,7 +16,7 @@ exports.install_models = function(bucket, app) {
 
     // Private function to delete an index document from the db
     UniqueIndex.prototype._delete_from_db = function(value) {
-        var deferred = new jquery.Deferred();
+        var deferred = jquery.Deferred();
         var dbid = this.get_key_prefix() + value;
         bucket.delete(dbid, function(err, meta) {
             if (err) {
@@ -30,7 +30,7 @@ exports.install_models = function(bucket, app) {
     // TODO: Delete this function
     // Check if value exists in index already. Resolve if DOESN'T exist, fails if exists
     UniqueIndex.prototype.check_not_exist = function(value) {
-        var deferred = new jquery.Deferred();
+        var deferred = jquery.Deferred();
         var dbid = this.get_key_prefix() + value;
         bucket.get(dbid, function(err, doc, meta) {
             if(err && err == couchbase.errors.keyNotFound) {
@@ -47,7 +47,7 @@ exports.install_models = function(bucket, app) {
     };
     UniqueIndex.prototype.create = function(id, value) {
         var dbid = this.get_key_prefix() + value;
-        var deferred = new jquery.Deferred();
+        var deferred = jquery.Deferred();
         bucket.add(dbid, id, function(err, meta) {
             if (err) {
                 deferred.reject(err);
@@ -59,7 +59,7 @@ exports.install_models = function(bucket, app) {
     };
     UniqueIndex.prototype.update = function(id, value) {
         var dbid = this.get_key_prefix() + value;
-        var deferred = new jquery.Deferred();
+        var deferred = jquery.Deferred();
         bucket.set(dbid, id, function(err, meta) {
             if (err) {
                 deferred.reject(err);
@@ -86,7 +86,7 @@ exports.install_models = function(bucket, app) {
 
     // Private function that adds the object to the db
     Model.prototype._add_to_db = function(dbid, attributes) {
-        var deferred = new jquery.Deferred();
+        var deferred = jquery.Deferred();
         bucket.add(dbid, attributes, function(err, meta) {
             if (err) {
                 deferred.reject(err);
@@ -99,7 +99,7 @@ exports.install_models = function(bucket, app) {
 
     // Private function that removes the object from the db
     Model.prototype._delete_from_db = function(dbid) {
-        var deferred = new jquery.Deferred();
+        var deferred = jquery.Deferred();
         bucket.delete(dbid, function(err, meta) {
             if (err) {
                 deferred.reject(err);
@@ -111,7 +111,7 @@ exports.install_models = function(bucket, app) {
 
     // Private function that updates an object in the db
     Model.prototype._update_in_db = function(dbid, attributes) {
-        var deferred = new jquery.Deferred();
+        var deferred = jquery.Deferred();
         bucket.set(dbid, function(err, meta) {
             if (err) {
                 deferred.reject(err);
@@ -148,13 +148,12 @@ exports.install_models = function(bucket, app) {
             add_indexes.push(add_def);
             // If anything fails, then set rollback to true
             var rollback = false;
-            var all_done = jquery.when.apply(add_indexes);
+            var all_done = jquery.when.apply(jquery, add_indexes);
             all_done.fail(function() {
                 rollback = true;
-            });
+            }).always(_.bind(function() {
             // After EVERYTHING is done, if we need to rollback then
             // do so, otherwise resolve the deferred
-            all_done.always(_.bind(function() {
                 if (rollback) {
                     var rollback_indicies = completed_indicies.map(function(index) {
                         var value = attributes[index.name];
@@ -169,8 +168,7 @@ exports.install_models = function(bucket, app) {
                         deferred.reject("Uniqueness violated");
                     });
                 } else {
-                    var instance = new this.create_instance(attributes);
-                    consol.log("resolving");
+                    var instance = this.create_instance(attributes);
                     deferred.resolve(instance);
                 }
             }, this));
