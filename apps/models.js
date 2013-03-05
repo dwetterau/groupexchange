@@ -18,7 +18,7 @@ exports.install_models = function(bucket, app) {
     UniqueIndex.prototype._delete_from_db = function(value) {
         var deferred = jquery.Deferred();
         var dbid = this.get_key_prefix() + value;
-        bucket.delete(dbid, function(err, meta) {
+        bucket.remove(dbid, function(err, meta) {
             if (err) {
                 deferred.reject(err);
             } else {
@@ -103,7 +103,7 @@ exports.install_models = function(bucket, app) {
     // Private function that removes the object from the db
     Model.prototype._delete_from_db = function(dbid) {
         var deferred = jquery.Deferred();
-        bucket.delete(dbid, function(err, meta) {
+        bucket.remove(dbid, function(err, meta) {
             if (err) {
                 deferred.reject(err);
             } else {
@@ -158,9 +158,11 @@ exports.install_models = function(bucket, app) {
             });
             // If base add completes, set this to true
             var add_completed = false;
-            var add_def = this._add_to_db(dbid, attributes).then(function() {
-                add_completed = true;
-            });
+            var add_def = this._add_to_db(dbid, attributes).then(_.bind(function() {
+                if (rollback) {
+                   this._delete_from_db(dbid);
+                }
+            }, this));
             add_indexes.push(add_def);
             // If anything fails, then set rollback to true
             var rollback = false;
@@ -168,17 +170,14 @@ exports.install_models = function(bucket, app) {
             all_done.fail(function() {
                 rollback = true;
             }).always(_.bind(function() {
-            // After EVERYTHING is done, if we need to rollback then
-            // do so, otherwise resolve the deferred
+                // After EVERYTHING is done, if we need to rollback then
+                // do so, otherwise resolve the deferred
                 if (rollback) {
                     var rollback_indicies = completed_indicies.map(function(index) {
                         var value = attributes[index.name];
                         return index._delete_from_db(value);
                     });
-                    if (add_completed) {
-                        rollback_indicies.push(this._delete_from_db(dbid));
-                    }
-                    // OK, so I'm going to assume these deletes always succede
+                                        // OK, so I'm going to assume these deletes always succede
                     // If they don't then we can't do much about it
                     jquery.when.apply(jquery, rollback_indicies).always(function() {
                         deferred.reject("Uniqueness violated");

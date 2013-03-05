@@ -11,6 +11,7 @@
         "validator": "0.4.x",
         "underscore": "1.4.4",
         "jasmine-node": "1.2.3",
-        "jquery": "1.8.3"
+        "jquery": "1.8.3",
+        "couchbase": "0.0.11"
     }
 }
