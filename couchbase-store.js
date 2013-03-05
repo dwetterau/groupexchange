@@ -1,3 +1,5 @@
+var couchbase = require('couchbase');
+
 module.exports = function(connect, bucket) {
     var Store = connect.session.Store;
     var type = "session";
@@ -9,9 +11,11 @@ module.exports = function(connect, bucket) {
     CouchbaseStore.prototype.__proto__ = Store.prototype;
     
     CouchbaseStore.prototype.get = function(sid, callback) {
-        var dbid = type + sid;
+        var dbid = type + '::' + sid;
         bucket.get(dbid, function(err, doc, meta) {
-            if (err) {
+            if (err && err.code == couchbase.errors.keyNotFound) {
+                callback();
+            } else if (err) {
                 callback(err);
             } else {
                 callback(null, doc);
@@ -19,7 +23,7 @@ module.exports = function(connect, bucket) {
         });
     };
     CouchbaseStore.prototype.set = function(sid, session, callback) {
-        var dbid = type + sid;
+        var dbid = type + '::' + sid;
         bucket.set(dbid, session, function(err, meta) {
             if (err) {
                 callback(err);

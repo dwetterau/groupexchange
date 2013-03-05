@@ -33,7 +33,7 @@ exports.install_models = function(bucket, app) {
         var deferred = jquery.Deferred();
         var dbid = this.get_key_prefix() + value;
         bucket.get(dbid, function(err, doc, meta) {
-            if(err && err == couchbase.errors.keyNotFound) {
+            if(err && err.code == couchbase.errors.keyNotFound) {
                 deferred.resolve();
             } else {
                 deferred.reject("Key exists!");
@@ -270,7 +270,6 @@ exports.install_models = function(bucket, app) {
     Model.prototype.load = function(id) {
         var deferred = jquery.Deferred();
         var dbid = this.type + '::' + id;
-        console.log("Loading id: " + dbid);
         bucket.get(dbid, _.bind(function(err, doc, meta) {
             if (err) {
                 deferred.reject(err);

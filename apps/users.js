@@ -14,7 +14,7 @@ exports.install_routes = function(app) {
         if (id === 'me') {
             id = req.user.get('id');
         }
-        var personal = app.Personal.load(id).then(function() {
+        var personal = app.Personal.load(id).then(function(personal) {
             if (req.user.get('id') !== id) {
                 //TODO add check to see if they are "partners"
                 for (var attr in personal.get('permissions').global) {
@@ -50,28 +50,27 @@ exports.install_routes = function(app) {
                 password: hashed_pass,
                 salt: salt,
                 reputation: 0,
-                // TODO: Get default stuff in models to avoid this nonsense
-                permissions: {
-                    global: {
-                        firstname: true,
-                        lastname: false,
-                        email: false,
-                        username: true,
-                        reputation: true
-                    },
-                    partners: {
-                        firstname: true,
-                        lastname: true,
-                        email: true,
-                        username: true,
-                        reputation: true
-                    }
-                }
             }).then(function(user) {
-                console.log("making personal");
                 var personal = app.Personal.create({
                     id: user.get('id').toString(),
-                    email: email
+                    email: email,
+                    // TODO: Get default stuff in models to avoid this nonsense
+                    permissions: {
+                        global: {
+                            firstname: true,
+                            lastname: false,
+                            email: false,
+                            username: true,
+                            reputation: true
+                        },
+                        partners: {
+                            firstname: true,
+                            lastname: true,
+                            email: true,
+                            username: true,
+                            reputation: true
+                        }
+                    }
                 }).then(function() {
                     res.send({success: true});
                 }).fail(function() {

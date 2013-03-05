@@ -4,7 +4,7 @@ var db = require('../db');
 module.exports = function(User) {
     var exports = {};
     function is_logged_in(req) {
-        if (req.session.user_id) {
+        if (req.session.user_id !== undefined) {
             return true;
         } else {
             return false;
