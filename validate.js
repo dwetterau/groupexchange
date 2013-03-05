@@ -15,7 +15,7 @@ function check(input, type) {
             checker(input).len(4,64);
             break;
         case "transaction":
-            checker(input).len(4,150);
+            checker(input).isInt();
             break;
         case "value":
             checker(input).isInt();

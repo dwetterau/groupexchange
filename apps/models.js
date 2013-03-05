@@ -421,8 +421,7 @@ exports.install_models = function(bucket, app) {
         }
     });
         
-
-    var Transaction = new Model('transactions', 'id', [], true, {
+    var Transaction = new Model('transaction', 'id', [], true, {
         getAllTransactions: function(username, callback, err_cb) {
             this.view([username], 'alltransactions', db.transactions, callback, err_cb);
         },
