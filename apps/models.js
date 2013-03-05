@@ -307,7 +307,7 @@ exports.install_models = function(bucket, app) {
 
     
     // Function that performs a view
-    Model.prototype.view = function(keys, name, db, callback, err_cb) {
+    Model.prototype.view = function(keys, name, callback, err_cb) {
         bucket.view('default', name, {keys: keys}, _.bind(function(err, view) {
             if (err) {
                 err_cb(err);

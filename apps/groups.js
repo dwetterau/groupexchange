@@ -128,16 +128,15 @@ exports.install_routes = function(app) {
         });
     });
 
-    app.get('/user/:username/groups', auth.checkAuth, function(req, res) {
-        var username_from_url = req.params.username;
-        var username = req.user.username;
-        if (username != username_from_url) {
+    app.get('/user/:id/groups', auth.checkAuth, function(req, res) {
+        var id_from_url = req.params.id;
+        var id = req.user.get('id');
+        if (id != id_from_url) {
             res.send({error: "You cannot view another user's groups", success: false});
             return;
         }
-        var user = new app.Personal(username);
-        user.get_groups(function(body) {
-            var groups = body.rows.map(function(row) { return row.value; });
+        app.Personal.view([id], 'user_groups', function(body) {
+            var groups = body.map(function(row) { return row.value; });
             res.send({groups: groups, success: true});
         }, function(err) {
             res.send({error: err, success: false});
