@@ -32,64 +32,54 @@ exports.install_routes = function(app) {
     });
 
     app.post('/makeaccount', function(req, res) {
-        app.bucket.incr('user::count', function(err, pid) { 
-            if (err) {
-                res.send({error: err, success: false});
-                return;
-            }
-                
-            console.log(pid);
-            var email = req.body.email.toLowerCase();
-            var pass = req.body.password;
+        var email = req.body.email.toLowerCase();
+        var pass = req.body.password;
 
-            try {
-                check(pid, 'pid');
-                check(email, 'email');
-            } catch (e) {
-                res.send({error: e.message, success: false});
-                return;
-            }
+        try {
+            check(email, 'email');
+        } catch (e) {
+            res.send({error: e.message, success: false});
+            return;
+        }
 
-            var salt = auth.generateSalt(128);
-            auth.hash_password(pass, salt, function(hashed_pass) {
-                //create the account
-                var new_user = app.User.create({
-                    id: pid.toString(),
-                    email: email,
-                    password: hashed_pass,
-                    salt: salt,
-                    reputation: 0,
-                    // TODO: Get default stuff in models to avoid this nonsense
-                    permissions: {
-                        global: {
-                            firstname: true,
-                            lastname: false,
-                            email: false,
-                            username: true,
-                            reputation: true
-                        },
-                        partners: {
-                            firstname: true,
-                            lastname: true,
-                            email: true,
-                            username: true,
-                            reputation: true
-                        }
+        var salt = auth.generateSalt(128);
+        auth.hash_password(pass, salt, function(hashed_pass) {
+            //create the account
+            var new_user = app.User.create({
+                email: email,
+                password: hashed_pass,
+                salt: salt,
+                reputation: 0,
+                // TODO: Get default stuff in models to avoid this nonsense
+                permissions: {
+                    global: {
+                        firstname: true,
+                        lastname: false,
+                        email: false,
+                        username: true,
+                        reputation: true
+                    },
+                    partners: {
+                        firstname: true,
+                        lastname: true,
+                        email: true,
+                        username: true,
+                        reputation: true
                     }
-                }).then(function(user) {
-                    console.log("making personal");
-                    var personal = app.Personal.create({
-                        id: pid.toString(),
-                        email: email
-                    }).then(function() {
-                        res.send({success: true});
-                    }).fail(function() {
-                        res.send({error: err, success: false});
-                    });
-                }).fail(function(err) {
-                    res.send({error: 'Unable to make account at this time', 
-                              success: false});
+                }
+            }).then(function(user) {
+                console.log("making personal");
+                var personal = app.Personal.create({
+                    id: user.get('id').toString(),
+                    email: email
+                }).then(function() {
+                    res.send({success: true});
+                }).fail(function() {
+                    res.send({error: err, success: false});
                 });
+            }).fail(function(err) {
+                res.send({error: 'Unable to make account at this time', 
+                          success: false});
             });
         });
     });

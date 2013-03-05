@@ -23,9 +23,9 @@ exports.install_routes = function(app) {
         app.User.load_by_index('email', email).then(function(user) {
             auth.hash_password(pass, user.get('salt'), function(hashed_pass) {
                 if (user.get('password') == hashed_pass) {
-                    req.session.user_id = email;
+                    req.session.user_id = user.get('id');
                     response.logged_in = true;
-                    response.username = body.username;
+                    response.id = user.get('id');
                 } else {
                     response.error = 'Invalid username or password';
                 }

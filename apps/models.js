@@ -70,10 +70,13 @@ exports.install_models = function(bucket, app) {
         return deferred;
     };
     
-    // Constructs a model with type type, id attribute id, and a list of unique attributes
-    var Model = function(type, id, uniques, instance_attrs) {
+    // Constructs a model with type type, id attribute id, and a list
+    // of unique attributes, generate_unique = true => keep a counter
+    // and increment it for every object created
+    var Model = function(type, id, uniques, generate_unique, instance_attrs) {
         this.type = type;
         this.id_attr = id;
+        this.generate_unique = generate_unique;
         this.ModelInstance = ModelInstanceConstructor(instance_attrs);
         if (uniques) {
             this.indicies = uniques.map(_.bind(function(unique) {
@@ -123,11 +126,24 @@ exports.install_models = function(bucket, app) {
     
     // Function that creates the object in the database
     Model.prototype.create = function(attributes) {
-        var counter_id = this.type + '::' + 'count';
         var deferred = jquery.Deferred();
-        bucket.incr(counter_id, _.bind(function(err, count) {
-            var dbid = this.type + '::' + count;
-            attributes.id = dbid;
+        var counter_deferred = jquery.Deferred();
+        // If we want a unique id, increment a counter. Otherwise, pass in the given id
+        if (this.generate_unique) {
+            var counter_id = this.type + '::' + 'count';
+            bucket.incr(counter_id, function(err, count) {
+                if (err) {
+                    counter_deferred.reject(err);
+                } else {
+                    counter_deferred.resolve(count);
+                }
+            });
+        } else {
+            counter_deferred.resolve(attributes[this.id_attr]);
+        }
+        counter_deferred.done(_.bind(function(id) {
+            var dbid = this.type + '::' + id;
+            attributes[this.id_attr] = id;
             // Rollback system - when an index is successfully
             // inserted, we add it to this list in case we need to
             // roll it back.
@@ -164,7 +180,7 @@ exports.install_models = function(bucket, app) {
                     }
                     // OK, so I'm going to assume these deletes always succede
                     // If they don't then we can't do much about it
-                    jquery.when.apply(rollback_indicies).always(function() {
+                    jquery.when.apply(jquery, rollback_indicies).always(function() {
                         deferred.reject("Uniqueness violated");
                     });
                 } else {
@@ -192,13 +208,13 @@ exports.install_models = function(bucket, app) {
         // After inserts are completely finished, we run deletes
         var delete_old = [];
 
-        var insert_new = jquery.when.apply(changing_indicies.map(function(index) {
+        var insert_new = jquery.when.apply(jquery, changing_indicies.map(function(index) {
             var value = updates[index.name].new;
             return index.create(dbid, value).then(function() {
                 added_indicies.push(index);
             });
         })).then(function() {
-            delete_old = jquery.when.apply(changing_indicies.map(function(index) {
+            delete_old = jquery.when.apply(jquery, changing_indicies.map(function(index) {
                 var value = updates[index.name].old;
                 return index._delete_from_db(value).then(function() {
                     deleted_indicies.push(index);
@@ -240,7 +256,7 @@ exports.install_models = function(bucket, app) {
                 });
 
                 // Assume always works
-                jquery.when.apply(all_rollback).always(function() {
+                jquery.when.apply(jquery, all_rollback).always(function() {
                     deferred.reject('Conflict with unique key');
                 });
             } else {
@@ -254,6 +270,7 @@ exports.install_models = function(bucket, app) {
     Model.prototype.load = function(id) {
         var deferred = jquery.Deferred();
         var dbid = this.type + '::' + id;
+        console.log("Loading id: " + dbid);
         bucket.get(dbid, _.bind(function(err, doc, meta) {
             if (err) {
                 deferred.reject(err);
@@ -269,6 +286,7 @@ exports.install_models = function(bucket, app) {
     Model.prototype.load_by_index = function(index_name, value) {
         var deferred = jquery.Deferred();
         var dbid = this.type + '::' + index_name + '::' + value;
+        var self = this;
         bucket.get(dbid, function(err, doc, meta) {
             if (err) {
                 deferred.reject(err);
@@ -277,7 +295,7 @@ exports.install_models = function(bucket, app) {
                     if (err) {
                         deferred.reject(err);
                     } else {
-                        var instance = this.create_instance(doc);
+                        var instance = self.create_instance(doc);
                         deferred.resolve(instance);
                     }
                 });
@@ -379,9 +397,9 @@ exports.install_models = function(bucket, app) {
 
 
 
-    var User = new Model('user', 'id', ['email']);
+    var User = new Model('user', 'id', ['email'], true);
 
-    var Personal = new Model('personal', 'id', [], {
+    var Personal = new Model('personal', 'id', [], false, {
         setBasicPermissions : function() {
             this.set('permissions', {
                 global: {
@@ -406,7 +424,7 @@ exports.install_models = function(bucket, app) {
     });
         
 
-    var Transaction = new Model('transactions', 'id', [], {
+    var Transaction = new Model('transactions', 'id', [], true, {
         getAllTransactions: function(username, callback, err_cb) {
             this.view([username], 'alltransactions', db.transactions, callback, err_cb);
         },
@@ -471,9 +489,9 @@ exports.install_models = function(bucket, app) {
         }
     });
 
-    var GroupMember = new Model('groupmember', 'id', []);
+    var GroupMember = new Model('groupmember', 'id', [], false);
 
-    var Group = new Model('group', 'id', [], {
+    var Group = new Model('group', 'id', [], true, {
         get_members: function(callback, err_cb) {
             this.view([this.get_id()], 'members', db.groupmembers, callback, err_cb);
         }
