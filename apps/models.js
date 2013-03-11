@@ -110,18 +110,20 @@ exports.install_models = function(bucket, app) {
                 deferred.resolve(meta);
             }
         });
+        return deferred;
     };
 
     // Private function that updates an object in the db
     Model.prototype._update_in_db = function(dbid, attributes) {
         var deferred = jquery.Deferred();
-        bucket.set(dbid, function(err, meta) {
+        bucket.set(dbid, attributes, function(err, meta) {
             if (err) {
                 deferred.reject(err);
             } else {
                 deferred.resolve(meta);
             }
         });
+        return deferred;
     };
     
     // Function that creates the object in the database
@@ -193,6 +195,7 @@ exports.install_models = function(bucket, app) {
     
     // Function that updates an object in the database
     Model.prototype.update = function(attributes, updates) {
+        var deferred = jquery.Deferred();
         var dbid = this.type + '::' + attributes.id;
         // Determine which indicies are changing
         var changing_indicies = this.indicies.filter(function(index) {
@@ -263,6 +266,7 @@ exports.install_models = function(bucket, app) {
                 deferred.resolve();
             }
         });
+        return deferred;
     };
     
     // Function that loads the object from the database based on an id 
@@ -302,9 +306,6 @@ exports.install_models = function(bucket, app) {
         return deferred;
     };
 
-        
-
-    
     // Function that performs a view
     Model.prototype.view = function(keys, name, db, callback, err_cb) {
         bucket.view('default', name, {keys: keys}, _.bind(function(err, view) {
@@ -434,7 +435,6 @@ exports.install_models = function(bucket, app) {
                       callback, err_cb);
         },
         advance: function(username, callback, err_cb) {
-            username = username.toString();
             //Verify that the user can actually update the transaction
             // flow is represented by an fsm but the path should be always
             // increasing and will skip either 3 or 4 to get to 5
@@ -453,19 +453,19 @@ exports.install_models = function(bucket, app) {
                 }
                 break;
             case 2:
-                if (username === this.get('sender')) {
+                if (username == this.get('sender')) {
                     numToUpdateTo = 3;
-                } else if (username === this.get('receiver')) {
+                } else if (username == this.get('receiver')) {
                     numToUpdateTo = 4;
                 }
                 break;
             case 3:
-                if (username === this.get('receiver')) {
+                if (username == this.get('receiver')) {
                     numToUpdateTo = 5;
                 }
                 break;
             case 4:
-                if (username === this.get('sender')) {
+                if (username == this.get('sender')) {
                     numToUpdateTo = 5;
                 }
                 break;

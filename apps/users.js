@@ -17,6 +17,7 @@ exports.install_routes = function(app) {
         var personal = app.Personal.load(id).then(function(personal) {
             if (req.user.get('id') !== id) {
                 //TODO add check to see if they are "partners"
+                //TODO change to modify JSON not the model
                 for (var attr in personal.get('permissions').global) {
                     if (!personal.get('permissions').global[attr]) {
                         personal.set(attr, undefined);
