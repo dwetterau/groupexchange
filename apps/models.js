@@ -26,20 +26,6 @@ exports.install_models = function(bucket, app) {
             }
         });
     };
-
-    // TODO: Delete this function
-    // Check if value exists in index already. Resolve if DOESN'T exist, fails if exists
-    UniqueIndex.prototype.check_not_exist = function(value) {
-        var deferred = jquery.Deferred();
-        var dbid = this.get_key_prefix() + value;
-        bucket.get(dbid, function(err, doc, meta) {
-            if(err && err.code == couchbase.errors.keyNotFound) {
-                deferred.resolve();
-            } else {
-                deferred.reject("Key exists!");
-            }
-        });
-    };
     
     // Create a new index document
     UniqueIndex.prototype.get_key_prefix =  function() {
@@ -73,11 +59,13 @@ exports.install_models = function(bucket, app) {
     // Constructs a model with type type, id attribute id, and a list
     // of unique attributes, generate_unique = true => keep a counter
     // and increment it for every object created
-    var Model = function(type, id, uniques, generate_unique, instance_attrs) {
+    var Model = function(type, id, uniques, generate_unique, instance_attrs, 
+      static_funcs) {
         this.type = type;
         this.id_attr = id;
         this.generate_unique = generate_unique;
         this.ModelInstance = ModelInstanceConstructor(instance_attrs);
+        this.static = static_funcs;
         if (uniques) {
             this.indicies = uniques.map(_.bind(function(unique) {
                 return new UniqueIndex(this, unique);
@@ -179,7 +167,7 @@ exports.install_models = function(bucket, app) {
                         var value = attributes[index.name];
                         return index._delete_from_db(value);
                     });
-                                        // OK, so I'm going to assume these deletes always succede
+                   // OK, so I'm going to assume these deletes always succede
                     // If they don't then we can't do much about it
                     jquery.when.apply(jquery, rollback_indicies).always(function() {
                         deferred.reject("Uniqueness violated");
@@ -393,9 +381,6 @@ exports.install_models = function(bucket, app) {
         _.extend(ModelInstance.prototype, instance_attrs);
         return ModelInstance;
     };
-
-
-
     var User = new Model('user', 'id', ['email'], true);
 
     var Personal = new Model('personal', 'id', [], false, {
@@ -416,24 +401,14 @@ exports.install_models = function(bucket, app) {
                     reputation: true
                 }
             });
-        },
+        }
+    }, {
         get_groups : function(callback, err_cb) {
-            this.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
+            Model.prototype.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
         }
     });
         
     var Transaction = new Model('transaction', 'id', [], true, {
-        getAllTransactions: function(username, callback, err_cb) {
-            this.view([username], 'alltransactions', db.transactions, callback, err_cb);
-        },
-        getUserTransactions: function(username1, username2, callback, err_cb) {
-            this.view([[username1, username2]], 'usertransactions', db.transactions,
-                      callback, err_cb);
-        },
-        getGroupTransactions: function(username, groupname, callback, err_cb) {
-            this.view([[username, groupname]], 'grouptransactions', db.transactions,
-                      callback, err_cb);
-        },
         advance: function(username, callback, err_cb) {
             //Verify that the user can actually update the transaction
             // flow is represented by an fsm but the path should be always
@@ -483,6 +458,18 @@ exports.install_models = function(bucket, app) {
             this.set('status', numToUpdateTo);
             this.set('lastModifiedTime', new Date());
             callback();
+        }
+    }, {
+        getAllTransactions: function(username, callback, err_cb) {
+            Model.prototype.view([username], 'alltransactions', db.transactions, callback, err_cb);
+        },
+        getUserTransactions: function(username1, username2, callback, err_cb) {
+            Model.prototype.view([[username1, username2]], 'usertransactions', db.transactions,
+                      callback, err_cb);
+        },
+        getGroupTransactions: function(username, groupname, callback, err_cb) {
+            Model.prototype.view([[username, groupname]], 'grouptransactions', db.transactions,
+                      callback, err_cb);
         }
     });
 

@@ -123,14 +123,12 @@ exports.install_routes = function(app) {
         });
     });
 
-    //TODO MAKE THESE STATIC
     app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
         var username = req.params.username;
         if (req.user.get('id') !== username) {
             res.send({error: "You can't see other members' transactions", success: false});
         }
-        var trans = new app.Transaction();
-        trans.getAllTransactions(username, function(body) {
+        var trans = app.Transaction.static.getAllTransactions(username, function(body) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
                 utils.cleanDoc(trans);
@@ -145,8 +143,7 @@ exports.install_routes = function(app) {
     app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
         var username_other = req.params.username;
         var username = req.user.get('id');
-        var trans = new app.Transaction();
-        trans.getUserTransactions(username, username_other, function(body) {
+        app.Transaction.static.getUserTransactions(username, username_other, function(body) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
                 utils.cleanDoc(trans);
@@ -160,8 +157,8 @@ exports.install_routes = function(app) {
 
     app.get('/group/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
         var groupname = req.params.groupname;
-        var trans = new app.Transaction();
-        trans.getGroupTransactions(req.user.get('id'), groupname, function(body) {
+        var trans = app.Transaction.static.getGroupTransactions(req.user.get('id'), 
+          groupname, function(body) {
             var transactions = body.rows.map(function(row) {   
                 var trans = row.value;
                 utils.cleanDoc(trans);
