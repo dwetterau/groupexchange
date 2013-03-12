@@ -401,8 +401,7 @@ exports.install_models = function(bucket, app) {
                     reputation: true
                 }
             });
-        }
-    }, {
+        },
         get_groups : function(callback, err_cb) {
             Model.prototype.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
         }
@@ -473,7 +472,7 @@ exports.install_models = function(bucket, app) {
         }
     });
 
-    var GroupMember = new Model('groupmember', 'id', [], false);
+    var GroupMember = new Model('groupmember', 'id', [], true);
 
     var Group = new Model('group', 'id', [], true, {
         get_members: function(callback, err_cb) {

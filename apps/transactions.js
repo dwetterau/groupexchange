@@ -52,7 +52,7 @@ exports.install_routes = function(app) {
             transactionObject.group = group;
         }
         var makeTransaction = function() {
-            var new_transaction = app.Transaction.create(transactionObject)
+            app.Transaction.create(transactionObject)
                 .then(function(transaction) {
                     res.send({success: true});
                 }).fail(function(err) {
