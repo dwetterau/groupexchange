@@ -18,25 +18,11 @@ exports.install_models = function(bucket, app) {
     UniqueIndex.prototype._delete_from_db = function(value) {
         var deferred = jquery.Deferred();
         var dbid = this.get_key_prefix() + value;
-        bucket.delete(dbid, function(err, meta) {
+        bucket.remove(dbid, function(err, meta) {
             if (err) {
                 deferred.reject(err);
             } else {
                 deferred.resolve();
-            }
-        });
-    };
-
-    // TODO: Delete this function
-    // Check if value exists in index already. Resolve if DOESN'T exist, fails if exists
-    UniqueIndex.prototype.check_not_exist = function(value) {
-        var deferred = jquery.Deferred();
-        var dbid = this.get_key_prefix() + value;
-        bucket.get(dbid, function(err, doc, meta) {
-            if(err && err.code == couchbase.errors.keyNotFound) {
-                deferred.resolve();
-            } else {
-                deferred.reject("Key exists!");
             }
         });
     };
@@ -73,11 +59,13 @@ exports.install_models = function(bucket, app) {
     // Constructs a model with type type, id attribute id, and a list
     // of unique attributes, generate_unique = true => keep a counter
     // and increment it for every object created
-    var Model = function(type, id, uniques, generate_unique, instance_attrs) {
+    var Model = function(type, id, uniques, generate_unique, instance_attrs, 
+      static_funcs) {
         this.type = type;
         this.id_attr = id;
         this.generate_unique = generate_unique;
         this.ModelInstance = ModelInstanceConstructor(instance_attrs);
+        this.static = static_funcs;
         if (uniques) {
             this.indicies = uniques.map(_.bind(function(unique) {
                 return new UniqueIndex(this, unique);
@@ -103,25 +91,27 @@ exports.install_models = function(bucket, app) {
     // Private function that removes the object from the db
     Model.prototype._delete_from_db = function(dbid) {
         var deferred = jquery.Deferred();
-        bucket.delete(dbid, function(err, meta) {
+        bucket.remove(dbid, function(err, meta) {
             if (err) {
                 deferred.reject(err);
             } else {
                 deferred.resolve(meta);
             }
         });
+        return deferred;
     };
 
     // Private function that updates an object in the db
     Model.prototype._update_in_db = function(dbid, attributes) {
         var deferred = jquery.Deferred();
-        bucket.set(dbid, function(err, meta) {
+        bucket.set(dbid, attributes, function(err, meta) {
             if (err) {
                 deferred.reject(err);
             } else {
                 deferred.resolve(meta);
             }
         });
+        return deferred;
     };
     
     // Function that creates the object in the database
@@ -158,9 +148,11 @@ exports.install_models = function(bucket, app) {
             });
             // If base add completes, set this to true
             var add_completed = false;
-            var add_def = this._add_to_db(dbid, attributes).then(function() {
-                add_completed = true;
-            });
+            var add_def = this._add_to_db(dbid, attributes).then(_.bind(function() {
+                if (rollback) {
+                   this._delete_from_db(dbid);
+                }
+            }, this));
             add_indexes.push(add_def);
             // If anything fails, then set rollback to true
             var rollback = false;
@@ -168,17 +160,14 @@ exports.install_models = function(bucket, app) {
             all_done.fail(function() {
                 rollback = true;
             }).always(_.bind(function() {
-            // After EVERYTHING is done, if we need to rollback then
-            // do so, otherwise resolve the deferred
+                // After EVERYTHING is done, if we need to rollback then
+                // do so, otherwise resolve the deferred
                 if (rollback) {
                     var rollback_indicies = completed_indicies.map(function(index) {
                         var value = attributes[index.name];
                         return index._delete_from_db(value);
                     });
-                    if (add_completed) {
-                        rollback_indicies.push(this._delete_from_db(dbid));
-                    }
-                    // OK, so I'm going to assume these deletes always succede
+                   // OK, so I'm going to assume these deletes always succede
                     // If they don't then we can't do much about it
                     jquery.when.apply(jquery, rollback_indicies).always(function() {
                         deferred.reject("Uniqueness violated");
@@ -194,6 +183,7 @@ exports.install_models = function(bucket, app) {
     
     // Function that updates an object in the database
     Model.prototype.update = function(attributes, updates) {
+        var deferred = jquery.Deferred();
         var dbid = this.type + '::' + attributes.id;
         // Determine which indicies are changing
         var changing_indicies = this.indicies.filter(function(index) {
@@ -264,6 +254,7 @@ exports.install_models = function(bucket, app) {
                 deferred.resolve();
             }
         });
+        return deferred;
     };
     
     // Function that loads the object from the database based on an id 
@@ -303,9 +294,6 @@ exports.install_models = function(bucket, app) {
         return deferred;
     };
 
-        
-
-    
     // Function that performs a view
     Model.prototype.view = function(keys, name, callback, err_cb) {
         bucket.view('default', name, {keys: keys}, _.bind(function(err, view) {
@@ -393,9 +381,6 @@ exports.install_models = function(bucket, app) {
         _.extend(ModelInstance.prototype, instance_attrs);
         return ModelInstance;
     };
-
-
-
     var User = new Model('user', 'id', ['email'], true);
 
     var Personal = new Model('personal', 'id', [], false, {
@@ -418,25 +403,12 @@ exports.install_models = function(bucket, app) {
             });
         },
         get_groups : function(callback, err_cb) {
-            this.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
+            Model.prototype.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
         }
     });
         
-
-    var Transaction = new Model('transactions', 'id', [], true, {
-        getAllTransactions: function(username, callback, err_cb) {
-            this.view([username], 'alltransactions', db.transactions, callback, err_cb);
-        },
-        getUserTransactions: function(username1, username2, callback, err_cb) {
-            this.view([[username1, username2]], 'usertransactions', db.transactions,
-                      callback, err_cb);
-        },
-        getGroupTransactions: function(username, groupname, callback, err_cb) {
-            this.view([[username, groupname]], 'grouptransactions', db.transactions,
-                      callback, err_cb);
-        },
+    var Transaction = new Model('transaction', 'id', [], true, {
         advance: function(username, callback, err_cb) {
-            username = username.toString();
             //Verify that the user can actually update the transaction
             // flow is represented by an fsm but the path should be always
             // increasing and will skip either 3 or 4 to get to 5
@@ -455,19 +427,19 @@ exports.install_models = function(bucket, app) {
                 }
                 break;
             case 2:
-                if (username === this.get('sender')) {
+                if (username == this.get('sender')) {
                     numToUpdateTo = 3;
-                } else if (username === this.get('receiver')) {
+                } else if (username == this.get('receiver')) {
                     numToUpdateTo = 4;
                 }
                 break;
             case 3:
-                if (username === this.get('receiver')) {
+                if (username == this.get('receiver')) {
                     numToUpdateTo = 5;
                 }
                 break;
             case 4:
-                if (username === this.get('sender')) {
+                if (username == this.get('sender')) {
                     numToUpdateTo = 5;
                 }
                 break;
@@ -486,9 +458,21 @@ exports.install_models = function(bucket, app) {
             this.set('lastModifiedTime', new Date());
             callback();
         }
+    }, {
+        getAllTransactions: function(username, callback, err_cb) {
+            Model.prototype.view([username], 'alltransactions', db.transactions, callback, err_cb);
+        },
+        getUserTransactions: function(username1, username2, callback, err_cb) {
+            Model.prototype.view([[username1, username2]], 'usertransactions', db.transactions,
+                      callback, err_cb);
+        },
+        getGroupTransactions: function(username, groupname, callback, err_cb) {
+            Model.prototype.view([[username, groupname]], 'grouptransactions', db.transactions,
+                      callback, err_cb);
+        }
     });
 
-    var GroupMember = new Model('groupmember', 'id', [], false);
+    var GroupMember = new Model('groupmember', 'id', [], true);
 
     var Group = new Model('group', 'id', [], true, {
         get_members: function(callback, err_cb) {
