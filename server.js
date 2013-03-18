@@ -8,7 +8,7 @@ var cluster = require('cluster');
 
 db.ready(function(bucket) {
     app.bucket = bucket;
-    var store = require('./couchbase-store')(connect, bucket);
+    var store = require('./session-store/couchbase-store')(connect, bucket);
     app.configure(function() {
         app.use(express.bodyParser());
         app.use(express.cookieParser());

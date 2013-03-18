@@ -1,6 +1,7 @@
 var couchbase = require('couchbase');
 
 module.exports = function(connect, bucket) {
+	"use strict";
     var Store = connect.session.Store;
     var type = "session";
 
@@ -8,7 +9,7 @@ module.exports = function(connect, bucket) {
         //https://github.com/visionmedia/connect-redis/blob/master/lib/connect-redis.js
         Store.call(this, options);
     }
-    CouchbaseStore.prototype.__proto__ = Store.prototype;
+    CouchbaseStore.prototype = Object.create(Store.prototype);
     
     CouchbaseStore.prototype.get = function(sid, callback) {
         var dbid = type + '::' + sid;
@@ -34,7 +35,7 @@ module.exports = function(connect, bucket) {
     };
     CouchbaseStore.prototype.destroy = function(sid, callback) {
         var dbid = type + sid;
-        bucket.delete(dbid, function(err, meta) {
+        bucket.remove(dbid, function(err, meta) {
             callback(err);
         });
     };
