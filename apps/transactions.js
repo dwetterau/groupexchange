@@ -12,7 +12,7 @@ exports.install_routes = function(app) {
         var amount = req.body.amount;
         var createTime = new Date();
         var details = req.body.details;
-        var group  = req.body.group;
+        var group  = parseInt(req.body.group);
         
         try {
             check(username2, "username");
@@ -21,7 +21,7 @@ exports.install_routes = function(app) {
                 check(details, "longtext");
             }
             if (group) {
-                check(group, "groupname");
+                check(group, "group_id");
             }
         } catch (e) {
             res.send({error: e, success: false});

@@ -15,7 +15,7 @@ exports.install_routes = function(app) {
             id = req.user.get('id');
         }
         var personal = app.Personal.load(id).then(function(personal) {
-            if (req.user.get('id') !== id) {
+            if (req.user.get('id') != id) {
                 //TODO add check to see if they are "partners"
                 //TODO change to modify JSON not the model
                 for (var attr in personal.get('permissions').global) {
@@ -50,7 +50,7 @@ exports.install_routes = function(app) {
                 email: email,
                 password: hashed_pass,
                 salt: salt,
-                reputation: 0,
+                reputation: 0
             }).then(function(user) {
                 var personal = app.Personal.create({
                     id: user.get('id').toString(),
@@ -85,10 +85,7 @@ exports.install_routes = function(app) {
     });
 
     app.post('/updateprofile', auth.checkAuth, function(req, res) {
-        var username = req.user.username;
-        var firstname = req.body.firstname;
-        var lastname = req.body.lastname;
-        var email = req.body.email;
+        var username = req.user.get("id").toString();
 
         var allNull = true;
         var update_type_map = {"firstname": "name", "lastname": "name"};
@@ -110,15 +107,14 @@ exports.install_routes = function(app) {
             res.send({error: "Nothing to update", success: true});
             return;
         }
-        var personal = new app.Personal(username);
-        personal.load(function() {
+        app.Personal.load(username).then(function(personal) {
             personal.update(updates);
-            personal.save(function() {
+            personal.save().then(function() {
                 res.send({success: true});
-            }, function(err) {
+            }).fail(function(err) {
                 res.send({error: err, success: false});
             });
-        }, function(err) {
+        }).fail(function(err) {
             res.send({error: err, success: false});
         });
 
