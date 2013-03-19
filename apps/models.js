@@ -297,6 +297,8 @@ exports.install_models = function(bucket, app) {
 
     // Function that performs a view
     Model.prototype.view = function(query_object, name, callback, err_cb) {
+        // NEVER WANT STALE!!!!!!! RARRRRRR!!!!
+        query_object.stale =  query_object.stale || false;
         bucket.view('default', name, query_object, _.bind(function(err, view) {
             if (err) {
                 err_cb(err);

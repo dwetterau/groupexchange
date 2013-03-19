@@ -5,7 +5,7 @@ var db = require('../db');
 var check = require('../validate').check;
 
 exports.install_routes = function(app) {
-    var auth = require('./auth')(app.Users);
+    var auth = require('./auth')(app.User);
 
     app.post('/login', function(req, res) {
         var email = req.body.email.toLowerCase();
