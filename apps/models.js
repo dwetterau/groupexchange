@@ -116,6 +116,7 @@ exports.install_models = function(bucket, app) {
     
     // Function that creates the object in the database
     Model.prototype.create = function(attributes) {
+        attributes.type = this.type;
         var deferred = jquery.Deferred();
         var counter_deferred = jquery.Deferred();
         // If we want a unique id, increment a counter. Otherwise, pass in the given id
@@ -295,8 +296,9 @@ exports.install_models = function(bucket, app) {
     };
 
     // Function that performs a view
-    Model.prototype.view = function(keys, name, callback, err_cb) {
-        bucket.view('default', name, {keys: keys}, _.bind(function(err, view) {
+    Model.prototype.view = function(key_object, name, callback, err_cb) {
+        console.log(key_object);
+        bucket.view('default', name, key_object, _.bind(function(err, view) {
             if (err) {
                 err_cb(err);
             } else {
@@ -460,7 +462,7 @@ exports.install_models = function(bucket, app) {
         }
     }, {
         getAllTransactions: function(username, callback, err_cb) {
-            Model.prototype.view([username], 'all_transactions', callback, err_cb);
+            Model.prototype.view({key: username}, 'all_transactions', callback, err_cb);
         },
         getUserTransactions: function(username1, username2, callback, err_cb) {
             Model.prototype.view([[username1, username2]], 'user_transactions', 
