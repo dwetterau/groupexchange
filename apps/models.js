@@ -296,9 +296,8 @@ exports.install_models = function(bucket, app) {
     };
 
     // Function that performs a view
-    Model.prototype.view = function(key_object, name, callback, err_cb) {
-        console.log(key_object);
-        bucket.view('default', name, key_object, _.bind(function(err, view) {
+    Model.prototype.view = function(query_object, name, callback, err_cb) {
+        bucket.view('default', name, query_object, _.bind(function(err, view) {
             if (err) {
                 err_cb(err);
             } else {
@@ -322,9 +321,7 @@ exports.install_models = function(bucket, app) {
         
         // Function that can be overridden to use any attribute as an id
         ModelInstance.prototype.get_id = function() {
-            if (this.attributes && this.attributes[this.id_attr]) {
-                return this.attributes[this.id_attr];
-            }
+            return this.get(this.id_attr);
         };
         // Function to return the key used by the database
         ModelInstance.prototype.get_db_id = function() {
@@ -405,7 +402,7 @@ exports.install_models = function(bucket, app) {
             });
         },
         get_groups : function(callback, err_cb) {
-            Model.prototype.view([this.get_id()], 'groups', db.groupmembers, callback, err_cb);
+            Model.prototype.view({key: this.get_id()}, 'user_groups', callback, err_cb);
         }
     });
         
@@ -465,11 +462,11 @@ exports.install_models = function(bucket, app) {
             Model.prototype.view({key: username}, 'all_transactions', callback, err_cb);
         },
         getUserTransactions: function(username1, username2, callback, err_cb) {
-            Model.prototype.view([[username1, username2]], 'user_transactions', 
+            Model.prototype.view({key: [username1, username2]}, 'user_transactions',
                       callback, err_cb);
         },
         getGroupTransactions: function(username, groupname, callback, err_cb) {
-            Model.prototype.view([[username, groupname]], 'group_transactions',
+            Model.prototype.view({key: [username, groupname]}, 'group_transactions',
                       callback, err_cb);
         }
     });
@@ -478,7 +475,7 @@ exports.install_models = function(bucket, app) {
 
     var Group = new Model('group', 'id', [], true, {
         get_members: function(callback, err_cb) {
-            this.view([this.get_id()], 'members', callback, err_cb);
+            Model.prototype.view({key: this.get_id()}, 'group_members', callback, err_cb);
         }
     });
 

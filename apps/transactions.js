@@ -70,7 +70,6 @@ exports.install_routes = function(app) {
     app.post('/transactioninfo', auth.checkAuth, function(req, res) {
         var username = req.user.get('id').toString();
         var transaction = req.body.transaction;
-
         try {
             check(transaction, "transaction");
         } catch (e) {
@@ -129,16 +128,9 @@ exports.install_routes = function(app) {
             res.send({error: "You can't see other members' transactions", success: false});
         }
         var trans = app.Transaction.static.getAllTransactions(username, function(body) {
-            var transactions;
-            if (body.rows) {
-                 transactions = body.rows.map(function(row) {   
-                    var trans = row.value;
-                    utils.cleanDoc(trans);
-                    return trans;
-                });
-            } else {
-                transactions = [];
-            }
+            var transactions = body.map(function(entry) {
+                    return entry.value;
+            });
             res.send({transactions: transactions, success: true});
         }, function(err) {
             res.send({error: err, success: false});
@@ -149,16 +141,9 @@ exports.install_routes = function(app) {
         var username_other = req.params.username;
         var username = req.user.get('id').toString();
         app.Transaction.static.getUserTransactions(username, username_other, function(body) {
-            var transactions;
-            if (body.rows) {
-                transactions = body.rows.map(function(row) {   
-                    var trans = row.value;
-                    utils.cleanDoc(trans);
-                    return trans;
-                });
-            } else {
-                transactions = [];
-            }
+            var transactions = body.map(function(entry) {
+                return entry.value;
+            });
             res.send({transactions: transactions, success: true});
         }, function(err) {        
             res.send({error: err, success: false});
@@ -169,16 +154,9 @@ exports.install_routes = function(app) {
         var groupname = req.params.groupname;
         var trans = app.Transaction.static.getGroupTransactions(req.user.get('id').toString(), 
           groupname, function(body) {
-            var transactions;
-            if (body.rows) {
-                transactions = body.rows.map(function(row) {   
-                    var trans = row.value;
-                    utils.cleanDoc(trans);
-                    return trans;
-                });
-            } else {
-                transactions = [];
-            }
+            var transactions = body.map(function(entry) {
+                return entry.value;
+            });
             res.send({transactions: transactions, success: true});
         }, function(err) {
             res.send({error: err, success: false});

@@ -14,6 +14,9 @@ function check(input, type) {
         case "groupname":
             checker(input).len(4,64);
             break;
+        case "group_id":
+            checker(input).isInt();
+            break;
         case "transaction":
             checker(input).isInt();
             break;

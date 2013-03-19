@@ -18,17 +18,16 @@ function addUserToGroup(app, username, id, res) {
 exports.install_routes = function(app) {
     var auth = require('./auth')(app.User);
     app.get('/group/:name', auth.checkAuth, function(req, res) {
-        var groupname = req.params.name;
-        var username = req.user.username;
+        var groupname = parseInt(req.params.name); //May cause error?
+        var username = req.user.get("id").toString();
         app.Group.load(groupname).then(function(group) {
             group.get_members(function(body) {
-                var group_members = body.rows.map(function(row) { return row.value; });
+                var group_members = body.map(function(entry) { return entry.value.toString(); });
                 if (group_members.indexOf(username) == -1) {
                     res.send({error: 'User not in group', success: false});
                     return;
                 }
-                utils.cleanDoc(group);
-                group.members = group_members;
+                group.set('members', group_members);
                 res.send({group: group, success: true});
             }, function(err) {
                 res.send({error: err, success: false});
@@ -40,7 +39,7 @@ exports.install_routes = function(app) {
 
     // Creates a group
     app.post('/makegroup', auth.checkAuth, function(req, res) {
-        var username = req.user.get('id');
+        var username = req.user.get('id').toString();
         var groupname = req.body.groupname.toLowerCase();
 
         try {
@@ -62,20 +61,20 @@ exports.install_routes = function(app) {
 
     // Adds a user to a group
     app.post('/addgroup', auth.checkAuth, function (req, res) {
-        var username = req.user.username;
-        var groupname = req.body.groupname.toLowerCase();
+        var username = req.user.get('id').toString();
+        var group_id = parseInt(req.body.groupname);
         var user_to_add = req.body.useradd.toLowerCase();
         
         try {
-            check(groupname, "groupname");
+            check(group_id, "group_id");
             check(user_to_add, "username");
         } catch (e) {
             res.send({error: e.message, success: false});
             return;
         }
-        app.Group.load(groupname).then(function(group) {
+        app.Group.load(group_id).then(function(group) {
             group.get_members(function(body) {
-                var group_members = body.rows.map(function(row) { return row.value; });
+                var group_members = body.map(function(entry) { return entry.value.toString(); });
                 if (group_members.indexOf(username) == -1) {
                     res.send({error: 'User not in group', success: false});
                     return;
@@ -85,7 +84,7 @@ exports.install_routes = function(app) {
                     return;
                 }
                 app.Personal.load(user_to_add).then(function(personal) {  
-                    addUserToGroup(app, user_to_add, groupname, res);
+                    addUserToGroup(app, user_to_add, group_id, res);
                 }).fail(function(err) {
                     res.send({error: 'Could not find user', success: false});
                 });
@@ -98,14 +97,13 @@ exports.install_routes = function(app) {
     });
 
     app.get('/group/:groupname/members', auth.checkAuth, function(req, res) {
-        var name = req.params.groupname;
-        var username = req.user.username;
+        var name = parseInt(req.params.groupname);
+        var username = req.user.get('id').toString();
         app.Group.load(name).then(function(group) {
             group.get_members(function(body) {
-                var group_members = body.rows.map(function(row) { return row.value; });
+                var group_members = body.map(function(entry) { return entry.value.toString(); });
                 if (group_members.indexOf(username) == -1) {
                     res.send({error: 'User not in group', success: false});
-                    return;
                 } else {
                     res.send({members: group_members, success: true});
                 }
@@ -119,14 +117,14 @@ exports.install_routes = function(app) {
 
     app.get('/user/:id/groups', auth.checkAuth, function(req, res) {
         var id_from_url = req.params.id;
-        var id = req.user.get('id');
+        var id = req.user.get('id').toString();
         if (id != id_from_url) {
             res.send({error: "You cannot view another user's groups", success: false});
             return;
         }
-        app.Personal.load(username).then(function(user) {
+        app.Personal.load(id).then(function(user) {
             user.get_groups(function(body) {
-                var groups = body.rows.map(function(row) { return row.value; });
+                var groups = body.map(function(entry) { return entry.value; });
                 res.send({groups: groups, success: true});
             }, function(err) {
                 res.send({error: err, success: false});
