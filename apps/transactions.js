@@ -6,7 +6,7 @@ exports.install_routes = function(app) {
     var auth = require('./auth')(app.User);
     app.post('/addtransaction', auth.checkAuth, function(req, res) {
         //The request will store the usernames of both of the parties in the transaction
-        var username1 = req.user.get('id');
+        var username1 = req.user.get('id').toString();
         var username2 = req.body.username2.toLowerCase();
         var direction = req.body.direction == "true"; //normal direction is from username1 to username2
         var amount = req.body.amount;
@@ -68,7 +68,7 @@ exports.install_routes = function(app) {
     });
 
     app.post('/transactioninfo', auth.checkAuth, function(req, res) {
-        var username = req.user.get('id');
+        var username = req.user.get('id').toString();
         var transaction = req.body.transaction;
 
         try {
@@ -93,7 +93,7 @@ exports.install_routes = function(app) {
     });
 
     app.post('/advancetransaction', auth.checkAuth, function(req, res) {
-        var username = req.user.get('id');
+        var username = req.user.get('id').toString();
         var transaction = req.body.transaction;
         try {
             check(transaction, "transaction");
@@ -124,16 +124,21 @@ exports.install_routes = function(app) {
     });
 
     app.get('/user/:username/alltransactions', auth.checkAuth, function(req, res) {
-        var username = req.params.username;
-        if (req.user.get('id') !== username) {
+        var username = req.params.username.toString();
+        if (req.user.get('id').toString() != username) {
             res.send({error: "You can't see other members' transactions", success: false});
         }
         var trans = app.Transaction.static.getAllTransactions(username, function(body) {
-            var transactions = body.rows.map(function(row) {   
-                var trans = row.value;
-                utils.cleanDoc(trans);
-                return trans;
-            });
+            var transactions;
+            if (body.rows) {
+                 transactions = body.rows.map(function(row) {   
+                    var trans = row.value;
+                    utils.cleanDoc(trans);
+                    return trans;
+                });
+            } else {
+                transactions = [];
+            }
             res.send({transactions: transactions, success: true});
         }, function(err) {
             res.send({error: err, success: false});
@@ -142,13 +147,18 @@ exports.install_routes = function(app) {
 
     app.get('/user/:username/usertransactions', auth.checkAuth, function(req, res) {
         var username_other = req.params.username;
-        var username = req.user.get('id');
+        var username = req.user.get('id').toString();
         app.Transaction.static.getUserTransactions(username, username_other, function(body) {
-            var transactions = body.rows.map(function(row) {   
-                var trans = row.value;
-                utils.cleanDoc(trans);
-                return trans;
-            });
+            var transactions;
+            if (body.rows) {
+                transactions = body.rows.map(function(row) {   
+                    var trans = row.value;
+                    utils.cleanDoc(trans);
+                    return trans;
+                });
+            } else {
+                transactions = [];
+            }
             res.send({transactions: transactions, success: true});
         }, function(err) {        
             res.send({error: err, success: false});
@@ -157,13 +167,18 @@ exports.install_routes = function(app) {
 
     app.get('/group/:groupname/grouptransactions', auth.checkAuth, function(req, res) {
         var groupname = req.params.groupname;
-        var trans = app.Transaction.static.getGroupTransactions(req.user.get('id'), 
+        var trans = app.Transaction.static.getGroupTransactions(req.user.get('id').toString(), 
           groupname, function(body) {
-            var transactions = body.rows.map(function(row) {   
-                var trans = row.value;
-                utils.cleanDoc(trans);
-                return trans;
-            });
+            var transactions;
+            if (body.rows) {
+                transactions = body.rows.map(function(row) {   
+                    var trans = row.value;
+                    utils.cleanDoc(trans);
+                    return trans;
+                });
+            } else {
+                transactions = [];
+            }
             res.send({transactions: transactions, success: true});
         }, function(err) {
             res.send({error: err, success: false});

@@ -460,14 +460,14 @@ exports.install_models = function(bucket, app) {
         }
     }, {
         getAllTransactions: function(username, callback, err_cb) {
-            Model.prototype.view([username], 'alltransactions', db.transactions, callback, err_cb);
+            Model.prototype.view([username], 'all_transactions', callback, err_cb);
         },
         getUserTransactions: function(username1, username2, callback, err_cb) {
-            Model.prototype.view([[username1, username2]], 'usertransactions', db.transactions,
+            Model.prototype.view([[username1, username2]], 'user_transactions', 
                       callback, err_cb);
         },
         getGroupTransactions: function(username, groupname, callback, err_cb) {
-            Model.prototype.view([[username, groupname]], 'grouptransactions', db.transactions,
+            Model.prototype.view([[username, groupname]], 'group_transactions',
                       callback, err_cb);
         }
     });
@@ -476,7 +476,7 @@ exports.install_models = function(bucket, app) {
 
     var Group = new Model('group', 'id', [], true, {
         get_members: function(callback, err_cb) {
-            this.view([this.get_id()], 'members', db.groupmembers, callback, err_cb);
+            this.view([this.get_id()], 'members', callback, err_cb);
         }
     });
 
